@@ -127,7 +127,119 @@ tr:hover td{background:var(--bg3)}
     .btn-file:hover{border-color:var(--blue);color:var(--blue)}
     input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer;height:3px;margin:6px 0}
     .range-label{text-align:center;font-size:12px;font-weight:600;margin-top:2px}
-</style>
+
+    /* ── MOBILE RESPONSIVE ─────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+
+      /* Full height flex layout so nothing overflows */
+      html, body { overflow: hidden; height: 100%; }
+
+      /* Stack app vertically */
+      .app { flex-direction: column; height: 100vh; overflow: hidden; }
+
+      /* Topbar: wrap onto two lines, smaller text */
+      .topbar {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        min-height: unset;
+      }
+      .topbar-title { font-size: 14px; }
+      .tag { font-size: 9px; padding: 1px 5px; }
+
+      /* Hide export/ticker controls on very small screens, show on tap */
+      .topbar > div:last-child { font-size: 10px; gap: 4px; flex-wrap: wrap; }
+
+      /* Sidebar becomes a horizontal scrollable strip at the top */
+      .sidebar {
+        width: 100% !important;
+        min-width: unset !important;
+        max-width: unset !important;
+        height: auto !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 8px;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      /* Sidebar sections inline */
+      .sidebar > div { min-width: unset; white-space: nowrap; }
+      .sidebar h3 { display: none; } /* hide section labels */
+
+      /* Platform pills horizontal scroll */
+      .platform-pills {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+
+      /* Mode list horizontal scroll */
+      .mode-list {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+      }
+      .mode-list > div {
+        flex-shrink: 0;
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+        white-space: nowrap;
+      }
+      .mode-list > div p { display: none !important; }
+
+      /* Full-width run button */
+      .btn-primary.btn-full { width: calc(100% - 16px) !important; margin: 4px 8px; }
+
+      /* Main content area scrollable */
+      .main {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        min-height: 0;
+      }
+
+      /* Content area inside main */
+      .content {
+        height: auto !important;
+        min-height: unset !important;
+      }
+
+      /* Tabs smaller */
+      .tabs { overflow-x: auto; white-space: nowrap; }
+      .tab { font-size: 11px; padding: 8px 12px; }
+
+      /* Log panel scrollable */
+      .log-panel {
+        height: calc(100vh - 420px) !important;
+        min-height: 200px;
+      }
+
+      /* Job history compact */
+      .job-list { max-height: 120px; }
+
+      /* Hide some topbar buttons on mobile to save space */
+      .btn { font-size: 10px; padding: 5px 8px; }
+    }
+
+    @media (max-width: 480px) {
+      .topbar-title { font-size: 12px; }
+      .params-section { max-height: 140px; }
+      .log-panel { height: calc(100vh - 380px) !important; }
+    }
+
+    </style>
 </head>
 <body>
 <div id="root"></div>
