@@ -389,11 +389,6 @@ body {
 </div>
 
 <script>
-  window.API_BASE = 'https://approved-remove-les-saying.trycloudflare.com';
-</script>
-
-<script>
-
 // ── Clock ─────────────────────────────────────────────────────────────────────
 function updateClock() {
   const n = new Date();
@@ -659,7 +654,7 @@ let lastPushedAt = 0;
 
 async function poll() {
   try {
-    const r = await fetch('/api/ticker/data');
+    const r = await fetch('https://approved-remove-les-saying.trycloudflare.com/api/ticker/data');
     if (!r.ok) return;
     const data = await r.json();
     if (data && data.pushedAt !== lastPushedAt) {
