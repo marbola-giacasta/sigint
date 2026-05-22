@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>INTEL FEED</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-mono:  'Courier New', 'Lucida Console', 'Consolas', monospace;
+      --bg:         #f0ede5;
+      --bg-alt:     #e8e4da;
+      --bg-header:  #1a1a1a;
+      --bg-sep:     #d0ccc0;
+      --text-main:  #0f0f0f;
+      --text-dim:   #555044;
+      --text-date:  #3a3530;
+      --text-hdr:   #f0ede5;
+      --col-yt:     #cc0000;
+      --col-rd:     #d64f00;
+      --col-ig:     #8a3060;
+      --col-x:      #333;
+      --row-h:      26px;
+      --fs:         11px;
+    }
+    html,body { height:100%; background:var(--bg); }
+    body { font-family:var(--font-mono); font-size:var(--fs); color:var(--text-main); overflow-x:hidden; }
+
+    #topbar {
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      background:var(--bg-header); color:var(--text-hdr);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 14px; height:32px;
+      border-bottom:2px solid #444;
+      font-family:var(--font-mono); font-size:10px; letter-spacing:.12em;
+    }
+    .topbar-l { display:flex; align-items:center; gap:16px; }
+    .topbar-title { font-size:12px; font-weight:bold; letter-spacing:.25em; text-transform:uppercase; }
+    .topbar-tag   { opacity:.55; font-size:9px; letter-spacing:.08em; }
+    .topbar-r     { display:flex; align-items:center; gap:18px; font-size:9.5px; opacity:.8; }
+    #clock        { font-size:10.5px; letter-spacing:.05em; opacity:1 !important; }
+    #dot          { width:7px; height:7px; border-radius:50%; background:#40ff70; box-shadow:0 0 5px #40ff70; }
+
+    #feed { margin-top:32px; padding-bottom:22px; }
+    #empty {
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; height:calc(100vh - 54px); color:var(--text-dim); gap:10px;
+    }
+    .empty-big { font-size:13px; letter-spacing:.3em; text-transform:uppercase; opacity:.45; }
+    .empty-sub { font-size:10px; letter-spacing:.1em; opacity:.3; }
+
+    .sec-hdr {
+      display:grid; grid-template-columns:200px 1fr 150px;
+      align-items:center; background:var(--bg-header); color:var(--text-hdr);
+      height:22px; border-top:3px solid #555;
+      position:sticky; top:32px; z-index:10;
+    }
+    .sec-hdr.yt{border-top-color:var(--col-yt)}.sec-hdr.rd{border-top-color:var(--col-rd)}
+    .sec-hdr.ig{border-top-color:var(--col-ig)}.sec-hdr.x{border-top-color:var(--col-x)}
+
+    .sec-plat {
+      padding:0 10px; font-size:10px; font-weight:bold;
+      letter-spacing:.2em; text-transform:uppercase;
+      display:flex; align-items:center; gap:7px;
+    }
+    .plat-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+    .yt .plat-dot{background:var(--col-yt)} .rd .plat-dot{background:var(--col-rd)}
+    .ig .plat-dot{background:var(--col-ig)} .x  .plat-dot{background:#666}
+
+    .sec-desc { padding:0 10px; font-size:9px; letter-spacing:.07em; opacity:.55;
+      text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sec-meta { padding:0 10px; font-size:9px; letter-spacing:.05em; opacity:.45;
+      text-align:right; white-space:nowrap; }
+
+    .badge-new {
+      display:inline-block; font-size:8px; padding:1px 4px;
+      background:#c84000; color:#fff; letter-spacing:.1em;
+      margin-left:6px; vertical-align:middle;
+      animation:blink 2s step-end 5;
+    }
+    @keyframes blink { 50%{opacity:0} }
+
+    .row {
+      display:grid; grid-template-columns:200px 1fr 150px;
+      align-items:center; height:var(--row-h);
+      border-bottom:1px solid var(--bg-sep);
+      background:var(--bg); border-left:3px solid transparent;
+    }
+    .row:nth-child(even){ background:var(--bg-alt); }
+    .row:hover          { background:#dddad0; }
+    .row.yt{border-left-color:var(--col-yt)} .row.rd{border-left-color:var(--col-rd)}
+    .row.ig{border-left-color:var(--col-ig)} .row.x{border-left-color:#888}
+
+    .col-a {
+      padding:0 8px 0 7px; font-weight:bold; color:var(--text-main);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      letter-spacing:.02em; font-size:var(--fs);
+    }
+    .col-c {
+      overflow:hidden; white-space:nowrap;
+      border-left:1px solid var(--bg-sep); border-right:1px solid var(--bg-sep);
+      height:100%; position:relative;
+    }
+    .marq {
+      display:inline-block; padding-left:100%;
+      font-size:var(--fs); color:var(--text-main); letter-spacing:.03em;
+      line-height:var(--row-h); white-space:nowrap;
+      animation:rtl var(--dur,30s) linear infinite;
+    }
+    .marq.static { animation:none; padding-left:10px; }
+    @keyframes rtl { 0%{transform:translateX(0)} 100%{transform:translateX(-100%)} }
+
+    .col-d {
+      padding:0 10px; font-size:10px; color:var(--text-date);
+      text-align:right; white-space:nowrap; letter-spacing:.04em;
+      font-variant-numeric:tabular-nums;
+    }
+
+    @keyframes sec-in { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:none} }
+    .sec-wrap { animation:sec-in .3s ease both; }
+
+    #bar {
+      position:fixed; bottom:0; left:0; right:0; height:18px;
+      background:var(--bg-header); color:var(--text-hdr);
+      display:flex; align-items:center; padding:0 14px;
+      font-size:9px; letter-spacing:.08em; opacity:.7; gap:20px;
+    }
+    #bar-r { margin-left:auto; }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="topbar-l">
+    <span class="topbar-title">◈ INTEL FEED</span>
+    <span class="topbar-tag">OPEN SOURCE INTELLIGENCE · LIVE AGGREGATOR</span>
+  </div>
+  <div class="topbar-r">
+    <span id="icount">0 ITEMS</span>
+    <span id="clock">--:--:-- UTC</span>
+    <div id="dot"></div>
+  </div>
+</div>
+
+<div id="feed">
+  <div id="empty">
+    <div class="empty-big">NO ACTIVE FEED</div>
+    <div class="empty-sub">AWAITING TRANSMISSION FROM ADMIN CONSOLE · PORT 3001</div>
+  </div>
+</div>
+
+<div id="bar">
+  <span id="bar-l">CONNECTING…</span>
+  <span id="bar-r"></span>
+</div>
+
+<script>
+const PLAT_LABEL = {youtube:'▶ YOUTUBE', reddit:'● REDDIT', instagram:'◎ INSTAGRAM', x:'✦ X / TWITTER'};
+const PLAT_CLS   = {youtube:'yt', reddit:'rd', instagram:'ig', x:'x'};
+const ORDER      = ['youtube','reddit','instagram','x'];
+
+// Clock
+function tick(){ const n=new Date(); document.getElementById('clock').textContent=`${pad(n.getUTCHours())}:${pad(n.getUTCMinutes())}:${pad(n.getUTCSeconds())} UTC`; }
+function pad(n){ return String(n).padStart(2,'0'); }
+tick(); setInterval(tick,1000);
+
+// Date formatter
+function fmtDate(raw){
+  if(!raw) return '—';
+  const d=new Date(raw);
+  if(!isNaN(d.getTime())) return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  return String(raw).slice(0,16);
+}
+
+// HTML escape
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Marquee duration: characters / speed
+function dur(text){ return Math.max(12,Math.min(90,Math.round((text||'').length/13))); }
+
+let lastHash='', total=0;
+
+function render(data){
+  const secs = data.sections||[];
+  const hash = JSON.stringify(secs.map(s=>s.pushedAt+'|'+s.rows.length));
+  if(hash===lastHash) return;
+  lastHash=hash;
+
+  const feed=document.getElementById('feed');
+  if(!secs.length){
+    feed.innerHTML='';
+    feed.appendChild(document.getElementById('empty'));
+    document.getElementById('empty').style.display='flex';
+    total=0; updateBar(data); return;
+  }
+
+  document.getElementById('empty').style.display='none';
+  feed.innerHTML='';
+  total=0;
+
+  const sorted=[...secs].sort((a,b)=>(ORDER.indexOf(a.platform)+1||99)-(ORDER.indexOf(b.platform)+1||99));
+  const isNew = ts => ts && (Date.now()-ts)<30000;
+
+  for(const sec of sorted){
+    if(!sec.rows?.length) continue;
+    const cls = PLAT_CLS[sec.platform]||'x';
+    const wrap=document.createElement('div');
+    wrap.className='sec-wrap';
+
+    const ts = sec.pushedAt ? new Date(sec.pushedAt).toISOString().replace('T',' ').slice(0,16)+' UTC' : '';
+    const hdr=document.createElement('div');
+    hdr.className=`sec-hdr ${cls}`;
+    hdr.innerHTML=`
+      <div class="sec-plat"><div class="plat-dot"></div>${esc(PLAT_LABEL[sec.platform]||sec.platform.toUpperCase())}${isNew(sec.pushedAt)?'<span class="badge-new">NEW</span>':''}</div>
+      <div class="sec-desc">${esc(sec.description||'')}</div>
+      <div class="sec-meta">${ts} · ${sec.rows.length}&nbsp;ITEMS</div>`;
+    wrap.appendChild(hdr);
+
+    for(const row of sec.rows){
+      total++;
+      const isLong=(row.content||'').length>55;
+      const el=document.createElement('div');
+      el.className=`row ${cls}`;
+      el.innerHTML=`
+        <div class="col-a" title="${esc(row.author)}">${esc(row.author)}</div>
+        <div class="col-c"><span class="marq ${isLong?'':'static'}" style="--dur:${dur(row.content)}s">${esc(row.content)}</span></div>
+        <div class="col-d">${fmtDate(row.date)}</div>`;
+      wrap.appendChild(el);
+    }
+    feed.appendChild(wrap);
+  }
+  document.getElementById('icount').textContent=`${total} ITEMS`;
+  updateBar(data);
+}
+
+function updateBar(data){
+  const ts=data.lastUpdate?new Date(data.lastUpdate).toISOString().replace('T',' ').slice(0,19)+' UTC':'—';
+  document.getElementById('bar-l').textContent=`LAST UPDATE: ${ts}  ·  ${total} ITEMS  ·  ${(data.sections||[]).length} SOURCE(S)`;
+}
+
+// SSE + fallback polling
+let es=null;
+function connect(){
+  if(es) es.close();
+  es=new EventSource('/stream');
+  es.onopen=()=>{ setDot('#40ff70'); document.getElementById('bar-r').textContent='STREAM LIVE'; };
+  es.onmessage=e=>{ try{render(JSON.parse(e.data));}catch{} };
+  es.onerror=()=>{ setDot('#ff4040'); document.getElementById('bar-r').textContent='RECONNECTING'; es.close(); setTimeout(connect,8000); setTimeout(poll,3000); };
+}
+async function poll(){ try{ const d=await fetch('/data').then(r=>r.json()); render(d); }catch{} }
+function setDot(c){ const d=document.getElementById('dot'); d.style.background=c; d.style.boxShadow=`0 0 5px ${c}`; }
+
+fetch('/data').then(r=>r.json()).then(render).catch(()=>{});
+connect();
+setInterval(poll,15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Social Scraper v4</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#252836;--bg4:#1e2132;
+  --border:#2e3247;--border2:#3d4260;
+  --text:#e4e6f0;--text2:#9499b8;--text3:#5c6080;
+  --blue:#4f7fff;--blue2:#3a6bef;--blue3:#1a3a8f;
+  --green:#2dd4a0;--red:#f06060;--orange:#f09a30;
+  --purple:#9b70f5;--yellow:#f5c842;--pink:#f06090;--teal:#4bacc6;
+  --x:#1d9bf0;
+  --r:8px;--font:'Inter','Segoe UI',system-ui,sans-serif;--mono:'JetBrains Mono','Fira Code',monospace;
+}
+html,body,#root{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;overflow:hidden}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.app{display:flex;flex-direction:column;height:100%}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:52px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar-title{font-size:16px;font-weight:800;letter-spacing:-.3px}
+.main{display:flex;flex:1;min-height:0}
+.sidebar{width:292px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.content{flex:1;display:flex;flex-direction:column;min-width:0}
+.sb-section{border-bottom:1px solid var(--border);padding:14px 16px}
+.sb-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:10px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:7px 10px;font-size:12px;font-family:var(--font);outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue)}
+.field textarea{resize:vertical;min-height:68px;font-family:var(--mono);font-size:11px}
+select option{background:var(--bg3)}
+.field-row{display:flex;gap:8px}.field-row .field{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:var(--r);border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;white-space:nowrap;font-family:var(--font)}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blue2)}.btn-primary:disabled{background:var(--blue3);color:var(--text3);cursor:not-allowed}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+.btn-green{background:var(--green);color:#000;font-weight:700}.btn-green:hover{background:#25b88a}
+.btn-full{width:100%}
+.platform-pills{display:flex;gap:5px;flex-wrap:wrap}
+.pill{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid;transition:all .15s}
+.pill-yt{color:#ff4444;border-color:#ff4444}.pill-yt.active{background:#ff4444;color:#fff}
+.pill-rd{color:#ff6314;border-color:#ff6314}.pill-rd.active{background:#ff6314;color:#fff}
+.pill-ig{color:#e1306c;border-color:#e1306c}.pill-ig.active{background:#e1306c;color:#fff}
+    .pill-x{color:#aaa;border-color:#aaa}.pill-x.active{background:#333;color:#fff;border-color:#555}
+.pill-x{color:#1d9bf0;border-color:#1d9bf0}.pill-x.active{background:#1d9bf0;color:#fff}
+.mode-list{display:flex;flex-direction:column;gap:3px}
+.mode-item{padding:6px 10px;border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--text2);border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:8px}
+.mode-item:hover{background:var(--bg3);color:var(--text)}.mode-item.active{background:var(--blue3);border-color:var(--blue);color:var(--text)}
+.mode-icon{font-size:13px;width:18px;text-align:center}
+.browser-status{display:flex;align-items:center;gap:8px;font-size:11px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}.dot-red{background:var(--red)}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;padding:0 16px}
+.tab{padding:11px 16px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:5px}
+.tab:hover{color:var(--text2)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.log-panel{flex:1;padding:12px 16px;overflow-y:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7}
+.log-line{display:flex;gap:10px}
+.log-time{color:var(--text3);flex-shrink:0;font-size:10px;padding-top:1px}
+.log-text{color:var(--text);white-space:pre-wrap;word-break:break-all}
+.log-error .log-text{color:var(--red)}.log-done .log-text{color:var(--green);font-weight:700}
+.log-empty{color:var(--text3);font-style:italic;padding:20px 0}
+/* Table */
+.results-toolbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.results-count{color:var(--text2);font-size:11px;margin-left:auto}
+.table-wrap{flex:1;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:2}
+th{background:var(--bg3);color:var(--text2);font-weight:600;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:7px 12px;border-bottom:1px solid var(--border);max-width:320px;overflow:hidden;text-overflow:ellipsis}
+/* Allow wrap on long text columns */
+td.td-wrap{white-space:normal;word-break:break-word;max-width:320px}
+td.td-nowrap{white-space:nowrap}
+tr:hover td{background:var(--bg3)}
+.td-link a{color:var(--blue)}.td-num{color:var(--yellow);font-family:var(--mono);white-space:nowrap}
+/* Tooltip */
+.tooltip-host{position:relative;display:inline-block;max-width:100%}
+.tooltip-host:hover .tooltip-box{display:block}
+.tooltip-box{display:none;position:fixed;z-index:9999;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);max-width:480px;white-space:pre-wrap;word-break:break-word;box-shadow:0 4px 20px #00000080;pointer-events:none;line-height:1.5}
+.pagination{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.page-info{font-size:11px;color:var(--text2)}
+/* Dashboard */
+.dash-wrap{flex:1;overflow-y:auto;padding:20px;background:var(--bg)}
+.dash-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.dash-toolbar select{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:6px 10px;font-size:12px;outline:none}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;cursor:default}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-blue::before{background:var(--blue)}.kpi-green::before{background:var(--green)}.kpi-orange::before{background:var(--orange)}.kpi-purple::before{background:var(--purple)}.kpi-x::before{background:var(--x)}
+.kpi-val{font-size:26px;font-weight:800;line-height:1;margin-bottom:4px}
+.kpi-label{font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:5px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.chart-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;justify-content:space-between}
+.chart-wrap{position:relative;height:200px}
+.insight-list{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
+.insight-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+.insight-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)}
+.insight-item:last-child{border-bottom:none}
+.job-list{padding:8px}
+.job-item{padding:7px 10px;border-radius:var(--r);cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:all .15s}
+.job-item:hover{background:var(--bg3)}.job-item.active{border-color:var(--blue);background:var(--bg3)}
+.job-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.status-badge{border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600}
+.status-running{background:#1a3a8f;color:var(--blue)}.status-done{background:#0d3520;color:var(--green)}.status-error{background:#3a1010;color:var(--red)}.status-queued{background:#2a2020;color:var(--orange)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite}
+.divider{height:1px;background:var(--border);margin:10px 0}
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.tag-blue{background:var(--blue3);color:var(--blue)}.tag-rd{background:#2a1200;color:var(--orange)}.tag-ig{background:#2a0018;color:var(--pink)}.tag-x{background:#001a2a;color:var(--x)}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--text3);gap:8px;font-size:13px}
+.empty-state .icon{font-size:40px;opacity:.4}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+    .field-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+    .field-header label{margin:0;font-size:11px;color:var(--text2);font-weight:500}
+    .btn-file{padding:2px 8px;font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text3);cursor:pointer;transition:all .15s;font-family:var(--font)}
+    .btn-file:hover{border-color:var(--blue);color:var(--blue)}
+    input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer;height:3px;margin:6px 0}
+    .range-label{text-align:center;font-size:12px;font-weight:600;margin-top:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState,useEffect,useRef,useMemo,useCallback } = React;
+const API=(p,o={})=>fetch(p,{headers:{'Content-Type':'application/json'},...o});
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const toNum=v=>{if(typeof v==='number')return v;const s=String(v??'').trim().replace(/,/g,'');const n=parseFloat(s);if(isNaN(n))return 0;if(/[Bb]/i.test(s))return Math.round(n*1e9);if(/[Mm]/i.test(s))return Math.round(n*1e6);if(/[Kk]/i.test(s))return Math.round(n*1e3);return Math.round(n);};
+const fmt=n=>{if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n?.toLocaleString?.()??String(n);};
+const pct=(a,b)=>b?((a/b)*100).toFixed(1)+'%':'—';
+const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
+const freq=arr=>{const m=new Map();arr.forEach(v=>{if(v!=null&&v!=='')m.set(v,(m.get(v)||0)+1);});return[...m.entries()].sort((a,b)=>b[1]-a[1]);};
+const timeAgo=ms=>{const s=Math.floor((Date.now()-ms)/1000);if(s<60)return`${s}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;return`${Math.floor(s/3600)}h ago`;};
+const flatObj=obj=>{const out={};const w=(o,p='')=>{for(const[k,v]of Object.entries(o??{})){if(k.startsWith('_'))continue;const key=p?`${p}.${k}`:k;if(v&&typeof v==='object'&&!Array.isArray(v))w(v,key);else out[key]=v;}};w(obj);return out;};
+
+// ── Tooltip ─────────────────────────────────────────────────────────────────
+function Tooltip({text,children}){
+  const ref=useRef(null);
+  const [pos,setPos]=useState({top:0,left:0});
+  const [show,setShow]=useState(false);
+  const over=e=>{const r=e.currentTarget.getBoundingClientRect();setPos({top:r.bottom+4,left:Math.min(r.left,window.innerWidth-490)});setShow(true);};
+  return(
+    <span ref={ref} style={{position:'relative',maxWidth:'100%',display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:text?.length>60?'help':'default'}}
+      onMouseEnter={over} onMouseLeave={()=>setShow(false)}>
+      {children}
+      {show&&text?.length>60&&<div className="tooltip-box" style={{position:'fixed',top:pos.top,left:pos.left}}>{text}</div>}
+    </span>
+  );
+}
+
+// ── Chart.js wrappers ───────────────────────────────────────────────────────
+const CDEFS={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9499b8',font:{size:11}}},tooltip:{backgroundColor:'#252836',titleColor:'#e4e6f0',bodyColor:'#9499b8'}},scales:{x:{ticks:{color:'#9499b8',font:{size:10}},grid:{color:'#2e3247'}},y:{ticks:{color:'#9499b8',font:{size:10}},grid:{color:'#2e3247'}}}};
+
+function ChartBar({data,label,color='#4f7fff',horizontal=true}){
+  const ref=useRef(null);const inst=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||!data?.labels?.length)return;
+    if(inst.current)inst.current.destroy();
+    const cfg=JSON.parse(JSON.stringify(CDEFS));
+    if(horizontal)cfg.indexAxis='y';
+    inst.current=new window.Chart(ref.current,{type:'bar',data:{labels:data.labels,datasets:[{label,data:data.values,backgroundColor:color+'cc',borderColor:color,borderWidth:1,borderRadius:4}]},options:{...cfg,plugins:{...cfg.plugins,legend:{display:false}}}});
+    return()=>{if(inst.current){inst.current.destroy();inst.current=null;}};
+  },[JSON.stringify(data),color]);
+  return<canvas ref={ref}/>;
+}
+
+function ChartDoughnut({data,colors}){
+  const ref=useRef(null);const inst=useRef(null);
+  const DC=['#4f7fff','#2dd4a0','#f09a30','#9b70f5','#f06060','#f5c842','#4bacc6','#e1306c'];
+  useEffect(()=>{
+    if(!ref.current||!data?.labels?.length)return;
+    if(inst.current)inst.current.destroy();
+    const cc=colors||DC;
+    inst.current=new window.Chart(ref.current,{type:'doughnut',data:{labels:data.labels,datasets:[{data:data.values,backgroundColor:cc.map(c=>c+'cc'),borderColor:cc,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#9499b8',font:{size:10},boxWidth:12}},tooltip:{backgroundColor:'#252836'}},cutout:'58%'}});
+    return()=>{if(inst.current){inst.current.destroy();inst.current=null;}};
+  },[JSON.stringify(data)]);
+  return<canvas ref={ref}/>;
+}
+
+function ChartLine({data,label,color='#4f7fff'}){
+  const ref=useRef(null);const inst=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||!data?.labels?.length)return;
+    if(inst.current)inst.current.destroy();
+    inst.current=new window.Chart(ref.current,{type:'line',data:{labels:data.labels,datasets:[{label,data:data.values,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:3,fill:true,tension:.3}]},options:{...JSON.parse(JSON.stringify(CDEFS)),plugins:{...CDEFS.plugins,legend:{display:false}}}});
+    return()=>{if(inst.current){inst.current.destroy();inst.current=null;}};
+  },[JSON.stringify(data)]);
+  return<canvas ref={ref}/>;
+}
+
+// ── KPI ─────────────────────────────────────────────────────────────────────
+const KPI=({value,label,sub,color='kpi-blue'})=>(
+  <div className={`kpi-card ${color}`}>
+    <div className="kpi-val">{value}</div>
+    <div className="kpi-label">{label}</div>
+    {sub&&<div className="kpi-sub">{sub}</div>}
+  </div>
+);
+
+// ── Insights ─────────────────────────────────────────────────────────────────
+const icons=['💡','📌','⚡','🎯','🔍','📊','🏆','📈'];
+const Insights=({items})=>(
+  <div className="insight-list">
+    <div className="insight-title">Auto-Generated Insights</div>
+    {items.map((t,i)=><div key={i} className="insight-item"><span style={{color:'var(--blue)',flexShrink:0}}>{icons[i%icons.length]}</span><span>{t}</span></div>)}
+  </div>
+);
+
+// ── DashCtrl: dropdown to switch chart metric ─────────────────────────────────
+function DashCtrl({label,options,value,onChange}){
+  return(
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <span style={{fontSize:11,color:'var(--text3)'}}>{label}</span>
+      <select className="dash-toolbar" value={value} onChange={e=>onChange(e.target.value)} style={{padding:'4px 8px',fontSize:11}}>
+        {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+// ── Dashboard Panel ──────────────────────────────────────────────────────────
+
+function DashControls({metric,setMetric,topN,setTopN,options}){
+  return(
+    <div className="dash-controls">
+      <label>Show</label>
+      <select className="dash-ctrl-select" value={metric} onChange={e=>setMetric(e.target.value)}>
+        {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+      <label style={{marginLeft:8}}>Top</label>
+      <select className="dash-ctrl-select" value={topN} onChange={e=>setTopN(Number(e.target.value))}>
+        {[5,10,20,50].map(n=><option key={n} value={n}>{n}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function DashboardPanel({jobId,platform,mode}){
+  const [results,setResults]=useState([]);
+  const [done,setDone]=useState(false);
+  const [topN,setTopN]=useState('10');
+  const [metric,setMetric]=useState('views');
+  const [chartType,setChartType]=useState('bar');
+
+  // Poll only while job is not done
+  useEffect(()=>{
+    if(!jobId)return;
+    setResults([]);setDone(false);
+    const poll=async()=>{
+      const r=await API(`/api/results/${jobId}`);
+      const d=await r.json();
+      if(d.results?.length)setResults(d.results);
+      if(d.status==='done'||d.status==='error')setDone(true);
+    };
+    poll();
+    const t=setInterval(async()=>{ if(done) return; const r2=await API(`/api/results/${jobId}`); const d2=await r2.json(); if(d2.results?.length) setRaw(d2.results); if(d2.status==='done'||d2.status==='error') setDone(true); },3000);
+    return()=>clearInterval(t);
+  },[jobId]);
+
+  const N=parseInt(topN)||10;
+
+  if(!jobId)return<div className="empty-state"><div className="icon">📈</div><div>Run a scrape to see analytics here</div></div>;
+  if(!results.length)return<div className="empty-state"><div className="icon">⏳</div><div>Waiting for results…</div></div>;
+
+  // ── YouTube Search ─────────────────────────────────────────────────────
+  if(platform==='youtube'&&mode==='search'){
+    const METRICS=[{value:'viewCount',label:'Views'},{value:'likes',label:'Likes'}];
+    const mv=metric==='likes'?results.map(r=>toNum(r.likes)):results.map(r=>toNum(r.viewCount));
+    const views=results.map(r=>toNum(r.viewCount));
+    const channels=freq(results.map(r=>r.channelName));
+    const kws=freq(results.map(r=>r.keyword));
+    const sorted=[...results].map((r,i)=>({...r,_m:mv[i]})).sort((a,b)=>b._m-a._m);
+    const topN_data={labels:sorted.slice(0,N).map(r=>String(r.title||'').slice(0,28)),values:sorted.slice(0,N).map(r=>r._m)};
+    const dough={labels:[...channels.slice(0,5).map(([n])=>String(n).slice(0,20)),channels.slice(5).reduce((a,[,c])=>a+c,0)>0?'Other':null].filter(Boolean),values:[...channels.slice(0,5).map(([,c])=>c),channels.slice(5).reduce((a,[,c])=>a+c,0)||null].filter(Boolean)};
+    return(
+      <div className="dash-wrap">
+        <div className="dash-toolbar">
+          <DashCtrl label="Top" options={[{value:'5',label:'5'},{value:'10',label:'10'},{value:'20',label:'20'}]} value={topN} onChange={setTopN}/>
+          <DashCtrl label="Metric" options={METRICS} value={metric} onChange={setMetric}/>
+          <DashCtrl label="Chart" options={[{value:'bar',label:'Bar'},{value:'line',label:'Line'}]} value={chartType} onChange={setChartType}/>
+          <span style={{marginLeft:'auto',fontSize:11,color:'var(--text3)'}}>{results.length} total results</span>
+        </div>
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Total Results" sub={`${channels.length} channels`} color="kpi-blue"/>
+          <KPI value={fmt(channels.length)} label="Unique Channels" sub="distinct creators" color="kpi-green"/>
+          <KPI value={fmt(Math.round(avg(views)))} label="Avg Views" sub={`max: ${fmt(Math.max(...views,0))}`} color="kpi-orange"/>
+          <KPI value={fmt(views.reduce((a,b)=>a+b,0))} label="Total Views" color="kpi-purple"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card">
+            <div className="chart-title">Top {N} Videos<span style={{fontWeight:400,color:'var(--text3)'}}>by {metric}</span></div>
+            <div className="chart-wrap">{chartType==='bar'?<ChartBar data={topN_data} label={metric} color="#4f7fff" horizontal/>:<ChartLine data={{labels:topN_data.labels,values:topN_data.values}} label={metric} color="#4f7fff"/>}</div>
+          </div>
+          <div className="chart-card"><div className="chart-title">Channel Distribution</div><div className="chart-wrap"><ChartDoughnut data={dough}/></div></div>
+        </div>
+        {kws.length>1&&<div className="chart-card" style={{marginBottom:14}}><div className="chart-title">Results per Keyword</div><div className="chart-wrap"><ChartBar data={{labels:kws.map(([k])=>k),values:kws.map(([,c])=>c)}} label="Results" color="#2dd4a0" horizontal/></div></div>}
+        <Insights items={[`${results.length} results across ${channels.length} channels.`,`Top channel: "${channels[0]?.[0]||'—'}" appeared ${channels[0]?.[1]||0} times.`,`Most viewed: "${sorted[0]?.title?.slice(0,60)||'—'}" (${fmt(sorted[0]?._m||0)}).`,`${views.filter(v=>v>1e6).length} results with 1M+ views.`]}/>
+      </div>
+    );
+  }
+
+  // ── YouTube Comments ───────────────────────────────────────────────────
+  if(platform==='youtube'&&mode==='comments'){
+    const likes=results.map(r=>toNum(r.likes));
+    const authors=freq(results.map(r=>r.author));
+    const replies=results.filter(r=>r.isReply==='yes').length;
+    const topL=results.map(r=>({...r,_l:toNum(r.likes)})).sort((a,b)=>b._l-a._l).slice(0,N);
+    const lbucks=[{l:'0',v:likes.filter(l=>l===0).length},{l:'1–5',v:likes.filter(l=>l>=1&&l<=5).length},{l:'6–20',v:likes.filter(l=>l>=6&&l<=20).length},{l:'21–100',v:likes.filter(l=>l>=21&&l<=100).length},{l:'100+',v:likes.filter(l=>l>100).length}];
+    return(
+      <div className="dash-wrap">
+        <div className="dash-toolbar"><DashCtrl label="Top" options={[{value:'5',label:'5'},{value:'10',label:'10'},{value:'20',label:'20'}]} value={topN} onChange={setTopN}/><span style={{marginLeft:'auto',fontSize:11,color:'var(--text3)'}}>{results.length} comments</span></div>
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Comments" sub={`${authors.length} authors`} color="kpi-blue"/>
+          <KPI value={`${results.length-replies}/${replies}`} label="Top/Replies" sub={`${pct(replies,results.length)} replies`} color="kpi-green"/>
+          <KPI value={fmt(likes.reduce((a,b)=>a+b,0))} label="Total Likes" sub={`avg ${avg(likes).toFixed(1)}`} color="kpi-orange"/>
+          <KPI value={fmt(Math.max(...likes,0))} label="Most Liked" color="kpi-purple"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card"><div className="chart-title">Top {N} Commenters</div><div className="chart-wrap"><ChartBar data={{labels:authors.slice(0,N).map(([n])=>String(n).slice(0,22)),values:authors.slice(0,N).map(([,c])=>c)}} label="Comments" color="#9b70f5" horizontal/></div></div>
+          <div className="chart-card"><div className="chart-title">Likes Distribution</div><div className="chart-wrap"><ChartBar data={{labels:lbucks.map(b=>b.l),values:lbucks.map(b=>b.v)}} label="Comments" color="#f09a30" horizontal={false}/></div></div>
+        </div>
+        <div className="chart-card" style={{marginBottom:14}}><div className="chart-title">Top {N} Most Liked Comments</div><div className="chart-wrap"><ChartBar data={{labels:topL.map(r=>String(r.author||'').slice(0,20)),values:topL.map(r=>r._l)}} label="Likes" color="#f5c842" horizontal/></div></div>
+        <Insights items={[`${results.length} comments, ${authors.length} unique authors.`,`Reply rate: ${pct(replies,results.length)}.`,`Top commenter: "${authors[0]?.[0]||'—'}" (${authors[0]?.[1]||0} comments).`,`${likes.filter(l=>l>=100).length} viral comments (100+ likes). Avg: ${avg(likes).toFixed(1)} likes.`]}/>
+      </div>
+    );
+  }
+
+  // ── YouTube Channel Search ──────────────────────────────────────────────
+  if(platform==='youtube'&&mode==='channel-search'){
+    const subs=results.map(r=>toNum(r.subscribers));
+    const verified=results.filter(r=>r.verified==='Yes').length;
+    const sorted=[...results].map(r=>({...r,_s:toNum(r.subscribers)})).sort((a,b)=>b._s-a._s);
+    return(
+      <div className="dash-wrap">
+        <div className="dash-toolbar"><DashCtrl label="Top" options={[{value:'5',label:'5'},{value:'10',label:'10'},{value:'20',label:'20'}]} value={topN} onChange={setTopN}/></div>
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Channels" color="kpi-blue"/>
+          <KPI value={fmt(verified)} label="Verified ✓" sub={pct(verified,results.length)} color="kpi-green"/>
+          <KPI value={fmt(Math.round(avg(subs)))} label="Avg Subscribers" color="kpi-orange"/>
+          <KPI value={fmt(Math.max(...subs,0))} label="Largest" sub={sorted[0]?.channelName?.slice(0,20)||'—'} color="kpi-purple"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card"><div className="chart-title">Top {N} by Subscribers</div><div className="chart-wrap"><ChartBar data={{labels:sorted.slice(0,N).map(r=>String(r.channelName||'').slice(0,22)),values:sorted.slice(0,N).map(r=>r._s)}} label="Subscribers" color="#4f7fff" horizontal/></div></div>
+          <div className="chart-card"><div className="chart-title">Verified vs Unverified</div><div className="chart-wrap"><ChartDoughnut data={{labels:['Verified ✓','Unverified'],values:[verified,results.length-verified]}} colors={['#2dd4a0','#3d4260']}/></div></div>
+        </div>
+        <Insights items={[`${results.length} channels found.`,`Largest: "${sorted[0]?.channelName||'—'}" (${fmt(sorted[0]?._s||0)} subs).`,`${subs.filter(s=>s>1e6).length} with 1M+ subs. ${subs.filter(s=>s<1e4).length} micro-channels.`]}/>
+      </div>
+    );
+  }
+
+  // ── YouTube Channel Videos ─────────────────────────────────────────────
+  if(platform==='youtube'&&mode==='channel-videos'){
+    const views=results.map(r=>toNum(r.viewCount));
+    const sorted=[...results].map(r=>({...r,_v:toNum(r.viewCount)})).sort((a,b)=>b._v-a._v);
+    const totalV=views.reduce((a,b)=>a+b,0);
+    const tiers=[{l:'<1K',v:views.filter(v=>v<1e3).length},{l:'1K–10K',v:views.filter(v=>v>=1e3&&v<1e4).length},{l:'10K–100K',v:views.filter(v=>v>=1e4&&v<1e5).length},{l:'100K–1M',v:views.filter(v=>v>=1e5&&v<1e6).length},{l:'1M+',v:views.filter(v=>v>=1e6).length}];
+    return(
+      <div className="dash-wrap">
+        <div className="dash-toolbar"><DashCtrl label="Top" options={[{value:'5',label:'5'},{value:'10',label:'10'},{value:'20',label:'20'}]} value={topN} onChange={setTopN}/><DashCtrl label="Chart" options={[{value:'bar',label:'Bar'},{value:'line',label:'Line'}]} value={chartType} onChange={setChartType}/></div>
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Videos" color="kpi-blue"/>
+          <KPI value={fmt(totalV)} label="Total Views" color="kpi-green"/>
+          <KPI value={fmt(Math.round(avg(views)))} label="Avg Views" sub={`max: ${fmt(Math.max(...views,0))}`} color="kpi-orange"/>
+          <KPI value={`${views.filter(v=>v>avg(views)*2).length}`} label="Above 2× Avg" color="kpi-purple"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card"><div className="chart-title">Top {N} Videos</div><div className="chart-wrap">{chartType==='bar'?<ChartBar data={{labels:sorted.slice(0,N).map(r=>String(r.title||'').slice(0,25)),values:sorted.slice(0,N).map(r=>r._v)}} label="Views" color="#4f7fff" horizontal/>:<ChartLine data={{labels:sorted.slice(0,N).map(r=>String(r.title||'').slice(0,15)),values:sorted.slice(0,N).map(r=>r._v)}} label="Views" color="#4f7fff"/>}</div></div>
+          <div className="chart-card"><div className="chart-title">View Count Tiers</div><div className="chart-wrap"><ChartBar data={{labels:tiers.map(b=>b.l),values:tiers.map(b=>b.v)}} label="Videos" color="#2dd4a0" horizontal={false}/></div></div>
+        </div>
+        <Insights items={[`${results.length} videos, ${fmt(totalV)} cumulative views.`,`Most viewed: "${sorted[0]?.title?.slice(0,60)||'—'}" (${fmt(sorted[0]?._v||0)}).`,`Top 10% of videos account for ~${pct(sorted.slice(0,Math.ceil(results.length*.1)).reduce((a,v)=>a+v._v,0),totalV)} of views.`]}/>
+      </div>
+    );
+  }
+
+  // ── Reddit Posts ───────────────────────────────────────────────────────
+  if(platform==='reddit'&&(mode==='search-posts'||mode==='subreddit')){
+    const scores=results.map(r=>toNum(r.score));
+    const authors=freq(results.map(r=>r.author));
+    const subs=freq(results.map(r=>r.subreddit));
+    const sorted=[...results].map(r=>({...r,_s:toNum(r.score)})).sort((a,b)=>b._s-a._s);
+    return(
+      <div className="dash-wrap">
+        <div className="dash-toolbar"><DashCtrl label="Top" options={[{value:'5',label:'5'},{value:'10',label:'10'},{value:'20',label:'20'}]} value={topN} onChange={setTopN}/></div>
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Posts" sub={`${authors.length} authors`} color="kpi-blue"/>
+          <KPI value={fmt(scores.reduce((a,b)=>a+b,0))} label="Total Score" sub={`avg ${fmt(Math.round(avg(scores)))}`} color="kpi-orange"/>
+          <KPI value={fmt(results.reduce((a,r)=>a+toNum(r.numComments),0))} label="Total Comments" color="kpi-green"/>
+          <KPI value={fmt(Math.max(...scores,0))} label="Top Score" color="kpi-purple"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card"><div className="chart-title">Top {N} Posts</div><div className="chart-wrap"><ChartBar data={{labels:sorted.slice(0,N).map(r=>String(r.title||'').slice(0,26)),values:sorted.slice(0,N).map(r=>r._s)}} label="Score" color="#ff6314" horizontal/></div></div>
+          <div className="chart-card"><div className="chart-title">Posts by Subreddit</div><div className="chart-wrap"><ChartDoughnut data={{labels:subs.slice(0,6).map(([n])=>'r/'+n),values:subs.slice(0,6).map(([,c])=>c)}} colors={['#ff6314','#f09a30','#4f7fff','#2dd4a0','#9b70f5','#f06060']}/></div></div>
+        </div>
+        <Insights items={[`${results.length} posts. Top author: "${authors[0]?.[0]||'—'}" (${authors[0]?.[1]||0} posts).`,`Highest score: "${sorted[0]?.title?.slice(0,60)||'—'}" (${fmt(sorted[0]?._s||0)}).`,`${scores.filter(s=>s>1000).length} posts broke 1K score.`]}/>
+      </div>
+    );
+  }
+
+  // ── Reddit Comments ────────────────────────────────────────────────────
+  if(platform==='reddit'&&mode==='post-comments'){
+    const scores=results.map(r=>toNum(r.score));
+    const authors=freq(results.map(r=>r.author));
+    const topLevel=results.filter(r=>r.isTopLevel==='yes').length;
+    return(
+      <div className="dash-wrap">
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Comments" sub={`${authors.length} authors`} color="kpi-blue"/>
+          <KPI value={`${topLevel}/${results.length-topLevel}`} label="Top/Replies" color="kpi-green"/>
+          <KPI value={fmt(scores.reduce((a,b)=>a+b,0))} label="Total Score" sub={`avg ${avg(scores).toFixed(1)}`} color="kpi-orange"/>
+          <KPI value={fmt(Math.max(...scores,0))} label="Best Score" color="kpi-purple"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card"><div className="chart-title">Top Commenters</div><div className="chart-wrap"><ChartBar data={{labels:authors.slice(0,N).map(([n])=>String(n).slice(0,20)),values:authors.slice(0,N).map(([,c])=>c)}} label="Comments" color="#ff6314" horizontal/></div></div>
+          <div className="chart-card"><div className="chart-title">Score Distribution</div><div className="chart-wrap"><ChartBar data={{labels:['Negative','0–1','2–10','11–100','100+'],values:[scores.filter(s=>s<0).length,scores.filter(s=>s>=0&&s<=1).length,scores.filter(s=>s>1&&s<=10).length,scores.filter(s=>s>10&&s<=100).length,scores.filter(s=>s>100).length]}} label="Comments" color="#9b70f5" horizontal={false}/></div></div>
+        </div>
+        <Insights items={[`${results.length} comments, ${authors.length} unique authors.`,`${topLevel} top-level, ${results.length-topLevel} replies.`,`Best score: ${fmt(Math.max(...scores,0))}.`]}/>
+      </div>
+    );
+  }
+
+  // ── Reddit Subreddits ──────────────────────────────────────────────────
+  if(platform==='reddit'&&mode==='search-subs'){
+    const subs=results.map(r=>toNum(r.subscribers));
+    const sorted=[...results].map(r=>({...r,_s:toNum(r.subscribers)})).sort((a,b)=>b._s-a._s);
+    return(
+      <div className="dash-wrap">
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Subreddits" color="kpi-blue"/>
+          <KPI value={fmt(Math.round(avg(subs)))} label="Avg Subscribers" color="kpi-orange"/>
+          <KPI value={fmt(subs.filter(s=>s>1e6).length)} label="1M+ Subs" color="kpi-green"/>
+          <KPI value={fmt(results.filter(r=>String(r.nsfw).toLowerCase()==='true').length)} label="NSFW" color="kpi-purple"/>
+        </div>
+        <div className="chart-card"><div className="chart-title">Top {N} Subreddits</div><div className="chart-wrap"><ChartBar data={{labels:sorted.slice(0,N).map(r=>'r/'+(r.name||'').slice(0,18)),values:sorted.slice(0,N).map(r=>r._s)}} label="Subs" color="#ff6314" horizontal/></div></div>
+        <Insights items={[`${results.length} subreddits. Largest: r/${sorted[0]?.name||'—'} (${fmt(sorted[0]?._s||0)}).`]}/>
+      </div>
+    );
+  }
+
+  // ── X (Twitter) ────────────────────────────────────────────────────────
+  if(platform==='x'){
+    const likes=results.map(r=>toNum(r.likes));
+    const rts=results.map(r=>toNum(r.retweets));
+    const views=results.map(r=>toNum(r.views));
+    const authors=freq(results.map(r=>r.handle||r.displayName));
+    const sorted=[...results].map(r=>({...r,_l:toNum(r.likes)})).sort((a,b)=>b._l-a._l);
+    return(
+      <div className="dash-wrap">
+        <div className="dash-toolbar">
+          <DashCtrl label="Top" options={[{value:'5',label:'5'},{value:'10',label:'10'},{value:'20',label:'20'}]} value={topN} onChange={setTopN}/>
+          <DashCtrl label="Rank by" options={[{value:'likes',label:'Likes'},{value:'retweets',label:'Retweets'},{value:'views',label:'Views'}]} value={metric} onChange={v=>{setMetric(v);}}/>
+        </div>
+        <div className="dash-kpis">
+          <KPI value={fmt(results.length)} label="Tweets" sub={`${authors.length} accounts`} color="kpi-x"/>
+          <KPI value={fmt(likes.reduce((a,b)=>a+b,0))} label="Total Likes" sub={`avg ${avg(likes).toFixed(1)}`} color="kpi-blue"/>
+          <KPI value={fmt(rts.reduce((a,b)=>a+b,0))} label="Total Retweets" color="kpi-green"/>
+          <KPI value={fmt(views.reduce((a,b)=>a+b,0))} label="Total Views" color="kpi-orange"/>
+        </div>
+        <div className="charts-row">
+          <div className="chart-card"><div className="chart-title">Top {N} Tweets by {metric}</div><div className="chart-wrap">
+            <ChartBar data={{labels:sorted.slice(0,N).map(r=>String(r.text||'').slice(0,25)),values:sorted.slice(0,N).map(r=>toNum(r[metric]||r.likes))}} label={metric} color="#1d9bf0" horizontal/>
+          </div></div>
+          <div className="chart-card"><div className="chart-title">Top Authors</div><div className="chart-wrap"><ChartBar data={{labels:authors.slice(0,N).map(([n])=>String(n).slice(0,20)),values:authors.slice(0,N).map(([,c])=>c)}} label="Tweets" color="#9b70f5" horizontal/></div></div>
+        </div>
+        <Insights items={[`${results.length} tweets from ${authors.length} unique accounts.`,`Most liked: "${sorted[0]?.text?.slice(0,60)||'—'}" (${fmt(sorted[0]?._l||0)} likes).`,`Total views: ${fmt(views.reduce((a,b)=>a+b,0))}. Avg likes: ${avg(likes).toFixed(1)}.`]}/>
+      </div>
+    );
+  }
+
+  return<div className="empty-state"><div className="icon">📊</div><div>No dashboard for this mode</div></div>;
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const PLATFORMS={
+  youtube:{label:'▶ YouTube',pill:'pill-yt',modes:[
+    {id:'search',label:'Search videos',icon:'🔍',desc:'Video titles, views, descriptions'},
+    {id:'channel-search',label:'Search channels',icon:'📺',desc:'Find channels by keyword'},
+    {id:'channel-videos',label:'Channel videos',icon:'🎬',desc:'All videos from a channel URL'},
+    {id:'comments',label:'Video comments',icon:'💬',desc:'Full comment threads from a URL'},
+  ]},
+  reddit:{label:'🟠 Reddit',pill:'pill-rd',modes:[
+    {id:'search-posts',label:'Search posts',icon:'🔍',desc:'Posts across Reddit'},
+    {id:'search-subs',label:'Search subreddits',icon:'🏘',desc:'Find communities'},
+    {id:'subreddit',label:'Subreddit posts',icon:'📋',desc:'Posts from a subreddit'},
+    {id:'post-comments',label:'Post comments',icon:'💬',desc:'Comments from a post'},
+  ]},
+  instagram:{label:'📸 Instagram',pill:'pill-ig',modes:[
+    {id:'profile',label:'Profile scrape',icon:'👤',desc:'Posts, stories, comments'},
+  ]},
+  x:{label:'𝕏 Twitter/X',pill:'pill-x',modes:[
+    {id:'search',label:'Search tweets',icon:'🔍',desc:'Tweets matching a keyword'},
+    {id:'user',label:'User tweets',icon:'👤',desc:'All tweets from a @handle'},
+    {id:'replies',label:'Tweet replies',icon:'💬',desc:'All replies under a tweet'},
+  ]},
+};
+const YT_FILTERS=[{label:'Any time · Relevance',value:null},{label:'Any time · By date',value:'CAI%3D'},{label:'Any time · By views',value:'CAM%3D'},{label:'Today',value:'EgIIAg%3D%3D'},{label:'This week',value:'EgIIAw%3D%3D'},{label:'This month',value:'EgIIBA%3D%3D'},{label:'This year',value:'EgIIBQ%3D%3D'}];
+const CH_SORTS=[{label:'Default (newest)',value:null},{label:'Most popular',value:'EgZ2aWRlb3MQAg%3D%3D'},{label:'Oldest first',value:'EgZ2aWRlb3MQCg%3D%3D'}];
+const RD_SORTS=['relevance','hot','top','new','comments'];
+const RD_TIMES=['all','year','month','week','day','hour'];
+const X_FILTERS=[{label:'Latest (default)',value:null},{label:'Top tweets',value:'top'},{label:'Live',value:'live'}];
+
+// ── Browser Panel ─────────────────────────────────────────────────────────────
+function BrowserPanel(){
+  const [st,setSt]=useState({open:false,browsers:[]});
+  const [sel,setSel]=useState('');const[busy,setBusy]=useState(false);
+  const refresh=async()=>{const r=await API('/api/browser/status');const d=await r.json();setSt(d);if(!sel&&d.browsers.length)setSel(d.browsers[0]);};
+  useEffect(()=>{refresh();const t=setInterval(refresh,3000);return()=>clearInterval(t);},[]);
+  const launch=async()=>{setBusy(true);await API('/api/browser/launch',{method:'POST',body:JSON.stringify({browserName:sel})});await refresh();setBusy(false);};
+  const close=async()=>{setBusy(true);await API('/api/browser/close',{method:'POST'});await refresh();setBusy(false);};
+  return(
+    <div className="sb-section">
+      <div className="sb-label">Browser</div>
+      <div className="browser-status" style={{marginBottom:8}}>
+        <div className={`dot ${st.open?'dot-green':'dot-red'}`}/>
+        <span style={{color:st.open?'var(--green)':'var(--red)',fontWeight:600}}>{st.open?(st.headless?'Headless running':'Browser open'):'Not running'}</span>
+      </div>
+      {!st.open?(
+        <>{st.browsers.length===0&&<div style={{color:'var(--red)',fontSize:11,marginBottom:8}}>No browser found.</div>}
+          <div className="field"><select value={sel} onChange={e=>setSel(e.target.value)}>{st.browsers.map(b=><option key={b}>{b}</option>)}</select></div>
+          <button className="btn btn-primary btn-full" onClick={launch} disabled={busy||!st.browsers.length}>{busy?<><span className="spinner"/>&nbsp;Launching…</>:'🚀 Launch Browser'}</button>
+        </>
+      ):(
+        <button className="btn btn-ghost btn-full" onClick={close} disabled={busy}>{busy?<span className="spinner"/>:'✕'} Close Browser</button>
+      )}
+    </div>
+  );
+}
+
+
+// ── FileTextarea — textarea with file upload button ────────────────────────────
+function FileTextarea({ label, value, onChange, placeholder, minH = 72 }) {
+  const ref = React.useRef(null);
+
+  const readFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = ''; // allow re-selecting same file
+
+    if (file.name.toLowerCase().endsWith('.txt')) {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      onChange(lines.join('\n'));
+    } else if (file.name.toLowerCase().endsWith('.xlsx')) {
+      const buf = await file.arrayBuffer();
+      const wb  = window.XLSX.read(buf);
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const rows= window.XLSX.utils.sheet_to_json(ws, { header:1 });
+      const lines = rows.map(r => String(r[0] ?? '').trim()).filter(Boolean);
+      onChange(lines.join('\n'));
+    }
+  };
+
+  const count = value ? value.split('\n').filter(Boolean).length : 0;
+
+  return (
+    <div className="field">
+      <div className="field-header">
+        <label>{label}{count > 0 && <span style={{color:'var(--green)',marginLeft:6}}>{count} item{count!==1?'s':''}</span>}</label>
+        <button className="btn-file" onClick={() => ref.current?.click()}>📂 .txt / .xlsx</button>
+        <input ref={ref} type="file" accept=".txt,.xlsx" style={{display:'none'}} onChange={readFile}/>
+      </div>
+      <textarea placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)}
+        style={{minHeight:minH}}/>
+    </div>
+  );
+}
+
+// ── Scrape Form ───────────────────────────────────────────────────────────────
+function ScrapeForm({onJobStart}){
+  const [plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
+  const [inp,setInp]=useState({});const[limit,setLimit]=useState({mode:'all',count:''});
+  const [filter,setFilter]=useState(null);const[concurrency,setConcurrency]=useState(1);const[busy,setBusy]=useState(false);
+  const modes=PLATFORMS[plat]?.modes??[];
+  const set=(k,v)=>setInp(p=>({...p,[k]:v}));
+  const lines=t=>(t??'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const run=async()=>{
+    setBusy(true);
+    const lc={mode:limit.mode,count:limit.mode==='specific'?parseInt(limit.count)||25:null};
+    const payload={platform:plat,mode,limit:lc,filter,concurrency,
+      inputs:{keywords:lines(inp.keywords),urls:lines(inp.urls),usernames:lines(inp.usernames),
+              subs:lines(inp.subs),handles:lines(inp.handles),
+              sort:inp.sort??'relevance',time:inp.time??'all',
+              wantLogin:inp.wantLogin??false,filter}};
+    const r=await API('/api/scrape',{method:'POST',body:JSON.stringify(payload)});
+    const {jobId}=await r.json();
+    onJobStart(jobId,plat,mode);setBusy(false);
+  };
+  const isYT=plat==='youtube';const isRD=plat==='reddit';const isX=plat==='x';
+  const needKw=['search','channel-search','search-posts','search-subs'].includes(mode)&&!isX;
+  const needXKw=isX&&mode==='search';
+  const needUrl=['comments','post-comments'].includes(mode)||(isX&&mode==='replies');
+  const needCh=mode==='channel-videos';const needSub=mode==='subreddit';
+  const needUn=mode==='profile';const needHandle=isX&&mode==='user';
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div className="sb-section">
+        <div className="sb-label">Platform</div>
+        <div className="platform-pills">
+          {Object.entries(PLATFORMS).map(([id,cfg])=>(
+            <div key={id} className={`pill ${cfg.pill} ${plat===id?'active':''}`}
+              onClick={()=>{setPlat(id);setMode(PLATFORMS[id].modes[0].id);setInp({});setFilter(null);}}>
+              {cfg.label}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="sb-section">
+        <div className="sb-label">Mode</div>
+        <div className="mode-list">
+          {modes.map(m=>(
+            <div key={m.id} className={`mode-item ${mode===m.id?'active':''}`}
+              onClick={()=>{setMode(m.id);setInp({});setFilter(null);}}>
+              <span className="mode-icon">{m.icon}</span>
+              <div><div style={{fontWeight:600}}>{m.label}</div><div style={{fontSize:10,color:'var(--text3)'}}>{m.desc}</div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="sb-section" style={{flex:1,overflowY:'auto'}}>
+        <div className="sb-label">Parameters</div>
+        {(needKw||needXKw)&&<FileTextarea label="Keywords (one per line)" placeholder={"bitcoin\nethereum"} value={inp.keywords||''} onChange={v=>set('keywords',v)}/>}
+        {needHandle&&<FileTextarea label="@handle(s) (one per line)" placeholder={"@elonmusk\n@NASA"} value={inp.handles||''} onChange={v=>set('handles',v)}/>}
+        {needUrl&&<FileTextarea label="URLs (one per line)" placeholder={isX?'https://x.com/user/status/...':'https://www.reddit.com/r/.../comments/...'} value={inp.urls||''} onChange={v=>set('urls',v)}/>}
+        {needCh&&<FileTextarea label="Channel URL(s)" placeholder={"https://www.youtube.com/@ChannelName"} value={inp.urls||''} onChange={v=>set('urls',v)}/>}
+        {needSub&&<FileTextarea label="Subreddits" placeholder={"r/technology\nr/science"} value={inp.subs||''} onChange={v=>set('subs',v)}/>}
+        {needUn&&<FileTextarea label="Instagram usernames" placeholder={"@username"} value={inp.usernames||''} onChange={v=>set('usernames',v)}/>}
+
+        {isYT&&(mode==='search'||mode==='channel-search')&&<div className="field"><label>Date / Sort filter</label><select value={filter??''} onChange={e=>setFilter(e.target.value||null)}>{YT_FILTERS.map(f=><option key={f.label} value={f.value??''}>{f.label}</option>)}</select></div>}
+        {isYT&&mode==='channel-videos'&&<div className="field"><label>Sort by</label><select value={filter??''} onChange={e=>setFilter(e.target.value||null)}>{CH_SORTS.map(f=><option key={f.label} value={f.value??''}>{f.label}</option>)}</select></div>}
+        {isRD&&(mode==='search-posts'||mode==='subreddit')&&<div className="field-row">
+          <div className="field"><label>Sort</label><select value={inp.sort??'relevance'} onChange={e=>set('sort',e.target.value)}>{RD_SORTS.map(s=><option key={s}>{s}</option>)}</select></div>
+          {(inp.sort==='top'||!inp.sort||inp.sort==='relevance')&&<div className="field"><label>Time</label><select value={inp.time??'all'} onChange={e=>set('time',e.target.value)}>{RD_TIMES.map(t=><option key={t}>{t}</option>)}</select></div>}
+        </div>}
+        {isX&&<div style={{background:'#1a1200',border:'1px solid #665000',borderRadius:6,padding:'8px 10px',fontSize:11,color:'#f5c842',marginBottom:8,lineHeight:1.5}}>⚠ X requires login. When you click Run, a login page will open — complete it and the scraper continues automatically.</div>}
+        {isX&&mode==='search'&&<div className="field"><label>Filter</label><select value={filter??''} onChange={e=>setFilter(e.target.value||null)}>{X_FILTERS.map(f=><option key={f.label} value={f.value??''}>{f.label}</option>)}</select></div>}
+        {isX&&<div className="field" style={{display:'flex',alignItems:'center',gap:8}}>
+          <input type="checkbox" id="xlogin" checked={!!inp.wantLogin} onChange={e=>set('wantLogin',e.target.checked)} style={{width:'auto'}}/>
+          <label htmlFor="xlogin" style={{margin:0,cursor:'pointer'}}>Log in to X first (more data)</label>
+        </div>}
+        {isRD&&<div className="field" style={{display:'flex',alignItems:'center',gap:8}}>
+          <input type="checkbox" id="rdlogin" checked={!!inp.wantLogin} onChange={e=>set('wantLogin',e.target.checked)} style={{width:'auto'}}/>
+          <label htmlFor="rdlogin" style={{margin:0,cursor:'pointer'}}>Log in to Reddit first</label>
+        </div>}
+
+        <div className="divider"/>
+        <div className="field"><label>Collection limit</label>
+          <select value={limit.mode} onChange={e=>setLimit(p=>({...p,mode:e.target.value}))}>
+            <option value="all">All available</option><option value="specific">Specific number</option><option value="last5">First 25/50</option>
+          </select>
+        </div>
+        {limit.mode==='specific'&&<div className="field"><label>Count</label><input type="number" min="1" placeholder="100" value={limit.count} onChange={e=>setLimit(p=>({...p,count:e.target.value}))}/></div>}
+        <div className="field" style={{marginTop:6}}>
+          <div className="field-header"><label>Parallel workers</label><span style={{fontSize:10,color:'var(--text3)'}}>1 – 10</span></div>
+          <input type="range" min="1" max="10" step="1" value={concurrency} onChange={e=>setConcurrency(Number(e.target.value))}/>
+          <div className={`range-label ${concurrency>1?'workers-many':'workers-1'}`} style={{color:concurrency>1?'var(--green)':'var(--text2)'}}>
+            {concurrency===1?'Sequential (1 worker)':`${concurrency} parallel workers`}
+          </div>
+        </div>
+        <div className="field" style={{marginTop:8}}>
+          <div className="field-header">
+            <label>Parallel workers</label>
+            <span style={{fontSize:10,color:'var(--text3)'}}>1 – 10 simultaneous</span>
+          </div>
+          <input type="range" min="1" max="10" step="1" value={concurrency}
+            onChange={e=>setConcurrency(Number(e.target.value))}/>
+          <div className="range-label" style={{color:concurrency>1?'var(--green)':'var(--text2)'}}>
+            {concurrency===1?'Sequential — 1 worker at a time':`${concurrency} workers running in parallel`}
+          </div>
+        </div>
+        <button className="btn btn-primary btn-full" style={{marginTop:8}} onClick={run} disabled={busy}>
+          {busy?<><span className="spinner"/>&nbsp;Running…</>:'▶  Run Scrape'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Log Panel ─────────────────────────────────────────────────────────────────
+function LogPanel({jobId}){
+  const [logs,setLogs]=useState([]);const[done,setDone]=useState(false);
+  const ref=useRef(null);const esRef=useRef(null);
+  useEffect(()=>{
+    setLogs([]);setDone(false);if(!jobId)return;
+    if(esRef.current)esRef.current.close();
+    const es=new EventSource(`/api/stream/${jobId}`);esRef.current=es;
+    es.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='end'){setDone(true);es.close();return;}setLogs(p=>[...p,d]);setTimeout(()=>ref.current?.scrollTo(0,1e9),10);};
+    return()=>es.close();
+  },[jobId]);
+  const fmt=ms=>new Date(ms).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  return(
+    <div ref={ref} className="log-panel">
+      {!jobId&&<div className="log-empty">Run a scrape to see live output here.</div>}
+      {jobId&&!logs.length&&!done&&<div className="log-empty"><span className="spinner" style={{verticalAlign:'middle'}}/> Starting…</div>}
+      {logs.map((l,i)=><div key={i} className={`log-line log-${l.type}`}><span className="log-time">{fmt(l.t)}</span><span className="log-text">{l.line}</span></div>)}
+      {done&&<div className="log-line log-done"><span className="log-time">──</span><span className="log-text">Session complete.</span></div>}
+    </div>
+  );
+}
+
+// ── Results Table ─────────────────────────────────────────────────────────────
+function ResultsTable({jobId}){
+  const [raw,setRaw]=useState([]);const[q,setQ]=useState('');const[sc,setSc]=useState('');const[sd,setSd]=useState('asc');const[pg,setPg]=useState(1);const[wrapCols,setWrapCols]=useState(new Set(['text','title','body','description','selfText','descriptionSnippet']));
+  const PS=50;
+  useEffect(()=>{if(!jobId){setRaw([]);return;}const p=async()=>{const r=await API(`/api/results/${jobId}`);const d=await r.json();if(d.results?.length)setRaw(d.results);};p();let done2=false; const t=setInterval(async()=>{ if(done2) return; const r=await API(`/api/results/${jobId}`); const d=await r.json(); if(d.results?.length) setRaw(d.results); if(d.status==='done'||d.status==='error') done2=true; },2000);return()=>clearInterval(t);},[jobId]);
+  const flat=useMemo(()=>raw.map(r=>{if(typeof r==='object'&&r!==null){if(r.type==='profile')return{username:r.username,...(r.summary??{}),posts:r.posts?.length,stories:r.stories?.length};return flatObj(r);}return{value:r};}),[raw]);
+  const cols=useMemo(()=>{const k=new Set();flat.forEach(r=>Object.keys(r).forEach(c=>k.add(c)));return[...k].slice(0,22);},[flat]);
+  const filt=useMemo(()=>{if(!q)return flat;const lq=q.toLowerCase();return flat.filter(r=>Object.values(r).some(v=>String(v??'').toLowerCase().includes(lq)));},[flat,q]);
+  const sorted=useMemo(()=>{if(!sc)return filt;return[...filt].sort((a,b)=>{const av=a[sc]??'',bv=b[sc]??'';const n=typeof av==='number'&&typeof bv==='number';const c=n?av-bv:String(av).localeCompare(String(bv));return sd==='asc'?c:-c;});},[filt,sc,sd]);
+  const pages=Math.max(1,Math.ceil(sorted.length/PS));
+  const rows=sorted.slice((pg-1)*PS,pg*PS);
+  const tgl=c=>{if(sc===c)setSd(d=>d==='asc'?'desc':'asc');else{setSc(c);setSd('asc');}setPg(1);};
+  const isUrl=(k,v)=>typeof v==='string'&&(k.toLowerCase().includes('url')||k.toLowerCase().includes('link')||String(v).startsWith('http'));
+  const isNum=v=>typeof v==='number';
+  const toggleWrap=c=>setWrapCols(s=>{const n=new Set(s);n.has(c)?n.delete(c):n.add(c);return n;});
+  const exportCsv=()=>{const lines=[cols.join(','),...sorted.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))];const b=new Blob([lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`results_${Date.now()}.csv`;a.click();};
+  if(!jobId)return<div style={{padding:24,color:'var(--text3)',fontStyle:'italic'}}>No job selected.</div>;
+  if(!flat.length)return<div style={{padding:24,color:'var(--text3)',fontStyle:'italic'}}>No results yet…</div>;
+  return(
+    <>
+      <div className="results-toolbar">
+        <input style={{width:200,padding:'6px 10px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,outline:'none'}} placeholder="🔍 Filter…" value={q} onChange={e=>{setQ(e.target.value);setPg(1);}}/>
+        <button className="btn btn-ghost" onClick={exportCsv}>⬇ CSV</button>
+        <span className="results-count">{filt.length.toLocaleString()} result{filt.length!==1?'s':''}</span>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead><tr>
+            <th style={{width:36}}>#</th>
+            {cols.map(c=>(
+              <th key={c} onClick={()=>tgl(c)} onDoubleClick={()=>toggleWrap(c)} title="Double-click to toggle text wrap">
+                {c} <span style={{color:sc===c?'var(--blue)':'var(--text3)'}}>{sc===c?(sd==='asc'?'↑':'↓'):'⇅'}</span>
+              </th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {rows.map((r,i)=>(
+              <tr key={i}>
+                <td style={{color:'var(--text3)'}}>{(pg-1)*PS+i+1}</td>
+                {cols.map(c=>{
+                  const v=r[c];const vs=v==null?'':String(v);
+                  const wrap=wrapCols.has(c);
+                  return(
+                    <td key={c} className={isUrl(c,v)?'td-link':isNum(v)?'td-num':wrap?'td-wrap':'td-nowrap'}>
+                      {isUrl(c,v)
+                        ?<a href={vs} target="_blank" rel="noopener noreferrer"><Tooltip text={vs}>🔗 {vs.slice(0,35)}</Tooltip></a>
+                        :wrap
+                          ?<span title={vs}>{vs.slice(0,300)}{vs.length>300?'…':''}</span>
+                          :<Tooltip text={vs}>{vs.slice(0,100)}</Tooltip>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pages>1&&<div className="pagination">
+        <button className="btn btn-ghost" disabled={pg===1} onClick={()=>setPg(1)}>«</button>
+        <button className="btn btn-ghost" disabled={pg===1} onClick={()=>setPg(p=>p-1)}>‹</button>
+        <span className="page-info">Page {pg} / {pages}</span>
+        <button className="btn btn-ghost" disabled={pg===pages} onClick={()=>setPg(p=>p+1)}>›</button>
+        <button className="btn btn-ghost" disabled={pg===pages} onClick={()=>setPg(pages)}>»</button>
+        <span style={{marginLeft:'auto',fontSize:10,color:'var(--text3)'}}>Double-click column header to wrap text</span>
+      </div>}
+    </>
+  );
+}
+
+// ── Job History ───────────────────────────────────────────────────────────────
+function JobHistory({activeId,onSelect}){
+  const [jobs,setJobs]=useState([]);
+  useEffect(()=>{const f=async()=>{const r=await API('/api/jobs');setJobs(await r.json());};f();const t=setInterval(f,2000);return()=>clearInterval(t);},[]);
+  return(
+    <div>
+      <div className="sb-label" style={{padding:'12px 16px 6px'}}>Job History</div>
+      <div className="job-list">
+        {!jobs.length&&<div style={{color:'var(--text3)',fontSize:11,padding:'4px 8px'}}>No jobs yet</div>}
+        {jobs.map(j=>(
+          <div key={j.id} className={`job-item ${j.id===activeId?'active':''}`} onClick={()=>onSelect(j.id,j.platform,j.mode)}>
+            <div className="job-item-top">
+              <span style={{fontSize:11,fontWeight:600}}>{(j.platform||'').slice(0,2).toUpperCase()} · {(j.mode||'').replace(/-/g,' ')}</span>
+              <span className={`status-badge status-${j.status}`}>{j.status}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:2}}>
+              <span style={{fontSize:10,color:'var(--text3)'}}>{j.count} results</span>
+              <span style={{fontSize:10,color:'var(--text3)'}}>{timeAgo(j.startedAt)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+
+class ErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={err:null};}
+  static getDerivedStateFromError(e){return{err:e};}
+  componentDidCatch(e,info){console.error('React crash:',e,info);}
+  render(){
+    if(this.state.err)return(
+      <div style={{padding:24,background:'#1a0808',border:'1px solid #f06060',borderRadius:8,margin:20,fontFamily:'var(--mono)',fontSize:12,color:'#f06060'}}>
+        <b>⚠ UI Error — {this.state.err.message}</b>
+        <br/><br/>
+        <button style={{padding:'6px 12px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',cursor:'pointer'}} onClick={()=>this.setState({err:null})}>↺ Retry</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+// ── Server status hook ─────────────────────────────────────────────────────────
+function useServerStatus() {
+  const [status, setStatus] = React.useState({ok:true,uptime:0,memMb:0,activeJob:null,browser:false});
+  React.useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await fetch('/api/health',{cache:'no-store'});
+        if(r.ok) setStatus(await r.json());
+      } catch { setStatus(s=>({...s,ok:false})); }
+    };
+    check(); const t=setInterval(check,5000); return()=>clearInterval(t);
+  },[]);
+  return status;
+}
+function App(){
+  const [jobId,setJobId]=useState(null);const[plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
+  const [tab,setTab]=useState('log');const[exporting,setExp]=useState(false);
+  const[tickerLimit,setTickerLimit]=useState(20);
+  const[pushing,setPush]=useState(false);
+  const[tickerMsg,setTickerMsg]=useState('');
+  const handleStart=(id,p,m)=>{setJobId(id);setPlat(p);setMode(m);setTab('log');};
+  const handleSelect=(id,p,m)=>{setJobId(id);if(p)setPlat(p);if(m)setMode(m);setTab('results');};
+  const exportXlsx=async()=>{
+    if(!jobId)return;setExp(true);
+    try{const res=await fetch(`/api/export/${jobId}`);if(!res.ok){const d=await res.json();alert('Export error: '+(d.error||res.status));return;}
+      const blob=await res.blob();const cd=res.headers.get('Content-Disposition')||'';
+      const fn=cd.match(/filename="([^"]+)"/)?.[1]||`export_${Date.now()}.xlsx`;
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;a.click();
+    }catch(e){alert('Export failed: '+e.message);}setExp(false);
+  };
+  const adminAction = async(endpoint, label) => {
+    setAdminMsg('⏳ ' + label + '…');
+    try {
+      const r = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'}});
+      const d = await r.json();
+      setAdminMsg(d.ok ? '✓ ' + (d.msg||label+' done') : '✗ '+(d.msg||d.error));
+    } catch(e) { setAdminMsg('✗ '+String(e.message)); }
+    setTimeout(()=>setAdminMsg(''),5000);
+  };
+  const pushToTicker=async()=>{
+    if(!jobId)return;
+    setPush(true);setTickerMsg('');
+    try{
+      const r=await fetch('/api/ticker/push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId,limit:tickerLimit})});
+      const d=await r.json();
+      if(d.ok)setTickerMsg('✓ '+d.total+' pushed · '+d.totalFeed+' total in feed');
+      else setTickerMsg('✗ '+(d.error||'failed'));
+    }catch(e){setTickerMsg('✗ '+String(e.message));}
+    setPush(false);
+    setTimeout(()=>setTickerMsg(''),4000);
+  };
+  return(
+    <div className="app">
+      <div className="topbar">
+        <div className="topbar-title">◈ Social <span style={{color:'var(--blue)'}}>Scraper</span> v4</div>
+        <span className="tag tag-blue">YouTube</span>
+        <span className="tag tag-rd">Reddit</span>
+        <span className="tag tag-ig">Instagram</span>
+        <span className="tag" style={{background:'#222',color:'#ccc',border:'1px solid #444'}}>✦ X</span>
+        <span className="tag tag-x">X / Twitter</span>
+        <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
+          {jobId&&<button className="btn btn-green" onClick={exportXlsx} disabled={exporting} style={{fontSize:11}}>{exporting?<><span className="spinner"/>&nbsp;Exporting…</>:'📊 Export Excel (.xlsx)'}</button>}
+          {jobId&&<div style={{display:'flex',alignItems:'center',gap:6}}>
+            <select style={{fontSize:11,padding:'4px 8px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text2)'}} value={tickerLimit} onChange={e=>setTickerLimit(Number(e.target.value))}>
+              {[5,10,20,50,100].map(n=><option key={n} value={n}>Top {n}</option>)}
+            </select>
+            <button className="btn" style={{fontSize:11,background:'#1a2a1a',color:'#5dba5d',border:'1px solid #3a5a3a'}} onClick={pushToTicker} disabled={pushing}>
+              {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:'📡 Push to Ticker'}
+            </button>
+            {tickerMsg&&<span style={{fontSize:10,color:tickerMsg.startsWith('✓')?'var(--green)':'var(--red)'}}>{tickerMsg}</span>}
+            <a href="/ticker.html" target="_blank" style={{fontSize:10,color:'var(--text3)',textDecoration:'none',borderLeft:'1px solid var(--border)',paddingLeft:8}}>↗ VIEW TICKER</a>
+          </div>}
+          <div className="status-panel">
+            {adminMsg && <span style={{fontSize:10,color:adminMsg.startsWith('✓')?'var(--green)':adminMsg.startsWith('✗')?'var(--red)':'var(--text2)'}}>{adminMsg}</span>}
+            {adminMsg && <div className="sep"/>}
+            {serverStatus.activeJob &&
+              <button className="danger-btn" onClick={()=>adminAction('/api/admin/cancel-job','Cancel job')} title="Stop the running scrape">⏹ Cancel</button>}
+            <button className="danger-btn" onClick={()=>adminAction('/api/admin/close-browser-reset','Reset browser')} title="Close browser and reset session state">↺ Reset</button>
+            <button className="danger-btn" onClick={()=>adminAction('/api/admin/clear-jobs','Clear history')} title="Clear job history from memory">🗑 Clear</button>
+            <div className="sep"/>
+            <span className={'status-pill '+(serverStatus.ok?'pill-ok':'pill-err')}>
+              {serverStatus.ok ? '● LIVE' : '● DOWN'}
+            </span>
+            {serverStatus.ok && <span style={{fontSize:9,color:'var(--text3)'}}>{Math.floor(serverStatus.uptime/60)}m up · {serverStatus.memMb}MB</span>}
+            <div className="sep"/>
+            <a href="/api/auth/logout" style={{fontSize:10,color:'var(--text3)',textDecoration:'none'}}
+               onClick={async e=>{e.preventDefault();await fetch('/api/auth/logout',{method:'POST'});window.location.href='/login';}}>
+               Sign out
+            </a>
+          </div>
+        </div>
+      </div>
+      <div className="main">
+        <div className="sidebar">
+          <BrowserPanel/>
+          <ScrapeForm onJobStart={handleStart}/>
+          <div style={{borderTop:'1px solid var(--border)'}}><JobHistory activeId={jobId} onSelect={handleSelect}/></div>
+        </div>
+        <div className="content">
+          <div className="tabs">
+            <div className={`tab ${tab==='log'?'active':''}`} onClick={()=>setTab('log')}>📟 Live Log</div>
+            <div className={`tab ${tab==='dashboard'?'active':''}`} onClick={()=>setTab('dashboard')}>📈 Dashboard</div>
+            <div className={`tab ${tab==='results'?'active':''}`} onClick={()=>setTab('results')}>📊 Results Table</div>
+          </div>
+          <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+            {tab==='log'&&<LogPanel jobId={jobId}/>}
+            {tab==='dashboard'&&<DashboardPanel jobId={jobId} platform={plat} mode={mode}/>}
+            {tab==='results'&&<ResultsTable jobId={jobId}/>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
+</script>
+</body>
+</html>

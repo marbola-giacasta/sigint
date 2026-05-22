@@ -1,0 +1,8 @@
+@"
+node_modules/
+dist/
+*.xlsx
+*.zip
+instagram_images/
+.env
+"@ | Out-File -Encoding utf8 .gitignore

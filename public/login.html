@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin Login · Social Scraper</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#252836;
+  --border:#2e3247;--text:#e4e6f0;--text2:#9499b8;--text3:#5c6080;
+  --blue:#4f7fff;--green:#2dd4a0;--red:#f06060;
+  --font:'Inter','Segoe UI',system-ui,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;}
+.wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:40px 36px;width:340px;}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.3px;margin-bottom:6px;}
+.logo span{color:var(--blue);}
+.subtitle{font-size:11px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px;letter-spacing:.05em;text-transform:uppercase;}
+.field input{
+  width:100%;background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);padding:10px 14px;
+  font-size:13px;font-family:var(--font);outline:none;transition:border-color .15s;
+}
+.field input:focus{border-color:var(--blue);}
+.btn{
+  width:100%;padding:11px;background:var(--blue);color:#fff;
+  border:none;border-radius:8px;font-size:13px;font-weight:700;
+  cursor:pointer;transition:background .15s;margin-top:8px;font-family:var(--font);
+}
+.btn:hover{background:#3a6bef;}
+.btn:disabled{background:#1a3a8f;color:var(--text3);cursor:not-allowed;}
+.error{
+  background:#1a0808;border:1px solid var(--red);border-radius:6px;
+  color:var(--red);padding:10px 14px;font-size:12px;margin-bottom:16px;display:none;
+}
+.error.show{display:block;}
+.footer{margin-top:20px;text-align:center;font-size:11px;color:var(--text3);}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #3a6bef;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="logo">◈ Social <span>Scraper</span></div>
+    <div class="subtitle">Admin Console · Secure Access</div>
+    <div class="error" id="err"></div>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="user" placeholder="admin" autocomplete="username" autofocus/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn" id="btn" onclick="login()">Sign In</button>
+    <div class="footer">Admin access only · Session expires after 8 hours</div>
+  </div>
+</div>
+<script>
+// Allow Enter key to submit
+document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+async function login() {
+  const user = document.getElementById('user').value.trim();
+  const pass = document.getElementById('pass').value;
+  const btn  = document.getElementById('btn');
+  const err  = document.getElementById('err');
+
+  if (!user || !pass) { showError('Username and password are required.'); return; }
+
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  err.classList.remove('show');
+
+  try {
+    const r = await fetch('/api/auth/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ user, pass }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      window.location.href = '/';
+    } else {
+      showError(d.error || 'Invalid credentials.');
+    }
+  } catch {
+    showError('Server unreachable. Is the scraper running?');
+  }
+
+  btn.disabled  = false;
+  btn.innerHTML = 'Sign In';
+}
+
+function showError(msg) {
+  const err = document.getElementById('err');
+  err.textContent = '⚠ ' + msg;
+  err.classList.add('show');
+}
+</script>
+</body>
+</html>
