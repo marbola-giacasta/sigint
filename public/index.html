@@ -840,6 +840,8 @@ function App(){
   const[tickerLimit,setTickerLimit]=useState(20);
   const[pushing,setPush]=useState(false);
   const[tickerMsg,setTickerMsg]=useState('');
+  const[adminMsg,setAdminMsg]=React.useState('');
+  const serverStatus=useServerStatus();
   const handleStart=(id,p,m)=>{setJobId(id);setPlat(p);setMode(m);setTab('log');};
   const handleSelect=(id,p,m)=>{setJobId(id);if(p)setPlat(p);if(m)setMode(m);setTab('results');};
   const exportXlsx=async()=>{
