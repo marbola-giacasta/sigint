@@ -458,6 +458,8 @@ async function buildWorkbook(exportData) {
 
 const app = express();
 
+app.use(express.json({ limit: '10mb' }));
+
 // ── CORS — allow ticker.html served from ANY origin to fetch /api/ticker/data ─
 // This is what lets a Vercel-hosted ticker page poll your local/tunnel server.
 app.use((req: any, res: any, next: any) => {
@@ -472,6 +474,12 @@ app.use((req: any, res: any, next: any) => {
 // ── Auth middleware — protects all admin routes ───────────────────────────────
 // Public routes (ticker.html, /api/ticker/data, /login) bypass this.
 app.use(requireAuth);
+
+// Serve the login page — must be before requireAuth would block it
+// (requireAuth already exempts /login from auth check, but we need the actual route)
+app.get('/login', (_req: any, res: any) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+});
 
 // ── Auth API routes ────────────────────────────────────────────────────────────
 
@@ -501,7 +509,6 @@ app.post('/api/auth/logout', (req: any, res: any) => {
 app.get('/api/auth/status', (req: any, res: any) => {
   res.json({ ok: true, user: (req as any).adminUser ?? 'admin' });
 });
-app.use(express.json({ limit:'10mb' }));
 // __dirname here is dist/ (compiled output folder)
 // public/ lives at the project root, so we go up one level
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -693,7 +700,36 @@ app.post('/api/publish', (req: any, res: any): void => {
  * It persists in memory for the lifetime of the server process.
  * Structure: { pushedAt: number, sections: [{platform, mode, items[]}] }
  */
-let tickerStore: { pushedAt: number; sections: Array<{ platform: string; mode: string; items: unknown[] }> } | null = null;
+// ── Ticker persistence ────────────────────────────────────────────────────────
+// tickerStore is saved to disk so data survives server restarts.
+// The file lives in the project root (next to package.json).
+const TICKER_FILE = path.join(process.cwd(), 'ticker-store.json');
+
+/** Load ticker data from disk on startup */
+function loadTickerStore(): typeof tickerStore {
+  try {
+    if (fs.existsSync(TICKER_FILE)) {
+      const raw = fs.readFileSync(TICKER_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      origLog(`  ✓  Ticker store loaded from disk (${parsed.sections?.length ?? 0} section(s), pushed ${new Date(parsed.pushedAt).toLocaleString()})`);
+      return parsed;
+    }
+  } catch (e: any) {
+    origLog(`  ⚠  Could not load ticker store from disk: ${e.message}`);
+  }
+  return null;
+}
+
+/** Save ticker data to disk after every push */
+function saveTickerStore(store: typeof tickerStore): void {
+  try {
+    fs.writeFileSync(TICKER_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  } catch (e: any) {
+    origError(`Could not save ticker store to disk: ${e.message}`);
+  }
+}
+
+let tickerStore: { pushedAt: number; sections: Array<{ platform: string; mode: string; items: unknown[] }> } | null = loadTickerStore();
 
 /**
  * GET /api/ticker/data
@@ -745,6 +781,7 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
   ];
 
   tickerStore = { pushedAt: Date.now(), sections: merged };
+  saveTickerStore(tickerStore);
 
   // ALSO push to the port-3002 display server so both feeds update simultaneously.
   // normaliseResults expects the flat job.results array (same as /api/publish uses)
