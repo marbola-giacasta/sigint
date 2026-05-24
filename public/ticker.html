@@ -34,7 +34,19 @@
   --fs-hd:    9.5px;
 }
 
-html, body { height: 100%; background: var(--paper); color: var(--ink); font-family: var(--mono); }
+html, body {
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  overflow: hidden; /* prevent body scroll — only #feed scrolls */
+}
+
+/* Full-height flex column so header+controls stay top, footer stays bottom */
+body {
+  display: flex;
+  flex-direction: column;
+}
 
 /* ── MASTHEAD ─────────────────────────────────────────────────────────────── */
 #masthead {
@@ -42,6 +54,8 @@ html, body { height: 100%; background: var(--paper); color: var(--ink); font-fam
   padding: 10px 20px 6px;
   display: flex; align-items: baseline; gap: 20px;
   background: var(--paper);
+  flex-shrink: 0;
+  flex-wrap: wrap; /* wrap on small screens */
 }
 #masthead-title {
   font-family: var(--display);
@@ -75,12 +89,16 @@ html, body { height: 100%; background: var(--paper); color: var(--ink); font-fam
   letter-spacing: 0.45em;
   padding: 2px 0;
   text-transform: uppercase;
+  flex-shrink: 0; /* never squash */
 }
 
 /* ── FEED CONTAINER ───────────────────────────────────────────────────────── */
 #feed {
-  padding: 0 0 60px;
-  min-height: calc(100vh - 80px);
+  flex: 1;           /* takes all remaining vertical space */
+  overflow-y: auto;  /* scrolls independently */
+  overflow-x: hidden;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
 }
 
 /* ── SECTION HEADER ───────────────────────────────────────────────────────── */
@@ -253,8 +271,12 @@ html, body { height: 100%; background: var(--paper); color: var(--ink); font-fam
 
 /* ── STATUS BAR ───────────────────────────────────────────────────────────── */
 #statusbar {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  position: sticky; /* stays at bottom of flex column */
+  bottom: 0;
+  left: 0;
+  right: 0;
   height: 22px;
+  flex-shrink: 0;
   border-top: 1px solid var(--rule2);
   background: var(--paper);
   display: flex; align-items: center; gap: 20px;
@@ -279,6 +301,7 @@ html, body { height: 100%; background: var(--paper); color: var(--ink); font-fam
   display: flex; align-items: center; gap: 14px;
   padding: 5px 20px; border-bottom: 1px solid var(--rule);
   background: var(--paper); flex-wrap: wrap;
+  flex-shrink: 0;
 }
 #search-input {
   font-family: var(--mono); font-size: var(--fs-sm);
@@ -303,6 +326,26 @@ html, body { height: 100%; background: var(--paper); color: var(--ink); font-fam
 .search-match { background: rgba(0,70,139,.2); border-radius: 2px; }
 .col-content-link { color: inherit; text-decoration: none; cursor: pointer; }
 .col-content-link:hover { color: var(--accent2); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── MOBILE ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #masthead-sub   { display: none; }  /* hide subtitle on small screens */
+  #masthead-clock { font-size: 8px; margin-left: auto; }
+  #masthead-title { font-size: 17px; }
+  #controls { gap: 8px; padding: 4px 10px; }
+  #search-input { width: 130px; }
+  .sort-btn { padding: 2px 5px; font-size: 9px; }
+  .ctrl-label { display: none; }  /* hide "SORT" label, keep buttons */
+
+  /* Tighter rows on mobile */
+  :root { --row-h: 20px; --fs: 10.5px; --fs-sm: 9.5px; }
+  .col-source { padding: 0 6px 0 10px; font-size: 9px; }
+  .data-row { grid-template-columns: 100px 1fr 80px; }
+  .col-header { grid-template-columns: 100px 1fr 80px; }
+  .section-header { grid-template-columns: 100px 1fr 80px; padding: 5px 10px 3px; }
+  .col-ts { padding: 0 10px 0 4px; font-size: 9px; }
+  #statusbar { font-size: 8px; padding: 0 10px; gap: 10px; height: 20px; }
+}
 </style>
 </head>
 <body>
@@ -609,17 +652,45 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
 // ── Polling ───────────────────────────────────────────────────────────────────
 let lastPushedAt = 0;
 
+const CACHE_KEY = 'sigint_ticker_last';
+
+// On load, immediately show cached data while waiting for server
+(function loadCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      currentData = data;
+      lastPushedAt = data.pushedAt;
+      renderFeed(data, false);
+      document.getElementById('status-msg').textContent =
+        'CACHED · SERVER OFFLINE · ' + new Date(data.pushedAt).toUTCString().slice(0,25).toUpperCase();
+    }
+  } catch {}
+})();
+
 async function poll() {
   try {
-    const r = await fetch('/api/ticker/data');
+    const r = await fetch('https://addressed-flashers-contributing-nerve.trycloudflare.com/api/ticker/data');
     if (!r.ok) return;
     const data = await r.json();
     if (data && data.pushedAt !== lastPushedAt) {
       lastPushedAt = data.pushedAt;
       currentData  = data;
+      // Save to localStorage every time we get fresh data
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch {}
       renderFeed(data, lastPushedAt !== 0);
     }
-  } catch {}
+    // Server reachable — update status
+    document.getElementById('status-msg').textContent =
+      'LIVE · ' + (currentData?.sections?.reduce((a,s) => a + s.items.length, 0) ?? 0) + ' RECORDS';
+  } catch {
+    // Server unreachable — keep showing cached data, update status label
+    if (currentData) {
+      document.getElementById('status-msg').textContent =
+        'CACHED · SERVER OFFLINE · LAST: ' + new Date(currentData.pushedAt).toUTCString().slice(0,16).toUpperCase();
+    }
+  }
 }
 poll(); setInterval(poll, 3_000);
 

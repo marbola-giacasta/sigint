@@ -652,6 +652,23 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
 // ── Polling ───────────────────────────────────────────────────────────────────
 let lastPushedAt = 0;
 
+const CACHE_KEY = 'sigint_ticker_last';
+
+// On load, immediately show cached data while waiting for server
+(function loadCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      currentData = data;
+      lastPushedAt = data.pushedAt;
+      renderFeed(data, false);
+      document.getElementById('status-msg').textContent =
+        'CACHED · SERVER OFFLINE · ' + new Date(data.pushedAt).toUTCString().slice(0,25).toUpperCase();
+    }
+  } catch {}
+})();
+
 async function poll() {
   try {
     const r = await fetch('https://addressed-flashers-contributing-nerve.trycloudflare.com/api/ticker/data');
@@ -660,9 +677,20 @@ async function poll() {
     if (data && data.pushedAt !== lastPushedAt) {
       lastPushedAt = data.pushedAt;
       currentData  = data;
+      // Save to localStorage every time we get fresh data
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch {}
       renderFeed(data, lastPushedAt !== 0);
     }
-  } catch {}
+    // Server reachable — update status
+    document.getElementById('status-msg').textContent =
+      'LIVE · ' + (currentData?.sections?.reduce((a,s) => a + s.items.length, 0) ?? 0) + ' RECORDS';
+  } catch {
+    // Server unreachable — keep showing cached data, update status label
+    if (currentData) {
+      document.getElementById('status-msg').textContent =
+        'CACHED · SERVER OFFLINE · LAST: ' + new Date(currentData.pushedAt).toUTCString().slice(0,16).toUpperCase();
+    }
+  }
 }
 poll(); setInterval(poll, 3_000);
 
