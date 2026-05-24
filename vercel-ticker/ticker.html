@@ -652,47 +652,41 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
 // ── Polling ───────────────────────────────────────────────────────────────────
 let lastPushedAt = 0;
 
-const CACHE_KEY = 'sigint_ticker_last';
-
-// On load, immediately show cached data while waiting for server
-(function loadCache() {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const data = JSON.parse(cached);
-      currentData = data;
-      lastPushedAt = data.pushedAt;
-      renderFeed(data, false);
-      document.getElementById('status-msg').textContent =
-        'CACHED · SERVER OFFLINE · ' + new Date(data.pushedAt).toUTCString().slice(0,25).toUpperCase();
-    }
-  } catch {}
-})();
+// ── Supabase config ──────────────────────────────────────────────────────────
+// Data is fetched directly from Supabase — no tunnel needed.
+// The ticker works even when the admin's PC is completely off.
+const SUPABASE_URL      = 'https://qqmidswgsqmimxrlyqru.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbWlkc3dnc3FtaW14cmx5cXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTU3MTgsImV4cCI6MjA5NTIzMTcxOH0.UDgz4TfVM7t4jLNA-IKB8C1SVhuJj_jKXac6PApo544';
 
 async function poll() {
   try {
-    const r = await fetch('https://karl-cir-lanes-really.trycloudflare.com/api/ticker/data');
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/ticker_store?id=eq.1&select=data,updated_at`,
+      {
+        headers: {
+          'apikey':        SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      }
+    );
     if (!r.ok) return;
-    const data = await r.json();
-    if (data && data.pushedAt !== lastPushedAt) {
+    const rows = await r.json();
+    if (!rows?.length || !rows[0]?.data?.pushedAt) return;
+    const data = rows[0].data;
+    if (data.pushedAt !== lastPushedAt) {
       lastPushedAt = data.pushedAt;
       currentData  = data;
-      // Save to localStorage every time we get fresh data
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch {}
       renderFeed(data, lastPushedAt !== 0);
     }
-    // Server reachable — update status
     document.getElementById('status-msg').textContent =
-      'LIVE · ' + (currentData?.sections?.reduce((a,s) => a + s.items.length, 0) ?? 0) + ' RECORDS';
-  } catch {
-    // Server unreachable — keep showing cached data, update status label
+      'LIVE · ' + (data.sections?.reduce((a,s) => a + s.items.length, 0) ?? 0) + ' RECORDS';
+  } catch (e) {
     if (currentData) {
-      document.getElementById('status-msg').textContent =
-        'CACHED · SERVER OFFLINE · LAST: ' + new Date(currentData.pushedAt).toUTCString().slice(0,16).toUpperCase();
+      document.getElementById('status-msg').textContent = 'RETRYING…';
     }
   }
 }
-poll(); setInterval(poll, 3_000);
+poll(); setInterval(poll, 5_000);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function escHtml(s) {

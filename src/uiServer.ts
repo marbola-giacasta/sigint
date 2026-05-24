@@ -700,6 +700,42 @@ app.post('/api/publish', (req: any, res: any): void => {
  * It persists in memory for the lifetime of the server process.
  * Structure: { pushedAt: number, sections: [{platform, mode, items[]}] }
  */
+// ── Supabase sync ─────────────────────────────────────────────────────────────
+// Credentials come from environment variables — never hardcode them.
+const SUPABASE_URL      = process.env.SUPABASE_URL      ?? '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
+
+/**
+ * Pushes ticker data to Supabase so the public ticker page can read it
+ * directly from Supabase — no tunnel needed, works even when server is off.
+ * Uses a simple PATCH to the ticker_store table (row id=1 always exists).
+ */
+async function syncToSupabase(store: typeof tickerStore): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return; // silently skip if not configured
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/ticker_store?id=eq.1`,
+      {
+        method:  'PATCH',
+        headers: {
+          'apikey':        SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type':  'application/json',
+          'Prefer':        'return=minimal',
+        },
+        body: JSON.stringify({ data: store, updated_at: new Date().toISOString() }),
+      }
+    );
+    if (r.ok) {
+      origLog(`  ✓  Supabase synced (${r.status})`);
+    } else {
+      origError(`  ⚠  Supabase sync failed: ${r.status} ${await r.text()}`);
+    }
+  } catch (e: any) {
+    origError(`  ⚠  Supabase sync error: ${e.message}`);
+  }
+}
+
 // ── Ticker persistence ────────────────────────────────────────────────────────
 // tickerStore is saved to disk so data survives server restarts.
 // The file lives in the project root (next to package.json).
@@ -782,6 +818,7 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
 
   tickerStore = { pushedAt: Date.now(), sections: merged };
   saveTickerStore(tickerStore);
+  syncToSupabase(tickerStore); // fire-and-forget — don't await, never blocks the response
 
   // ALSO push to the port-3002 display server so both feeds update simultaneously.
   // normaliseResults expects the flat job.results array (same as /api/publish uses)
