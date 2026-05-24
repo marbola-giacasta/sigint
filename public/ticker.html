@@ -671,7 +671,7 @@ const CACHE_KEY = 'sigint_ticker_last';
 
 async function poll() {
   try {
-    const r = await fetch('https://addressed-flashers-contributing-nerve.trycloudflare.com/api/ticker/data');
+    const r = await fetch('https://karl-cir-lanes-really.trycloudflare.com');
     if (!r.ok) return;
     const data = await r.json();
     if (data && data.pushedAt !== lastPushedAt) {
