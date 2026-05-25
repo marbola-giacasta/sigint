@@ -702,8 +702,8 @@ app.post('/api/publish', (req: any, res: any): void => {
  */
 // ── Supabase sync ─────────────────────────────────────────────────────────────
 // Credentials come from environment variables — never hardcode them.
-const SUPABASE_URL      = 'https://qqmidswgsqmimxrlyqru.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key-here';
+const SUPABASE_URL      = process.env.SUPABASE_URL      ?? '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
 
 /**
  * Pushes ticker data to Supabase so the public ticker page can read it
@@ -711,8 +711,15 @@ const SUPABASE_ANON_KEY = 'your-anon-key-here';
  * Uses a simple PATCH to the ticker_store table (row id=1 always exists).
  */
 async function syncToSupabase(store: typeof tickerStore): Promise<void> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return; // silently skip if not configured
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    origLog('  ⚠  Supabase not configured — skipping sync');
+    return;
+  }
   try {
+    const body = JSON.stringify({
+      data:       store,
+      updated_at: new Date().toISOString(),
+    });
     const r = await fetch(
       `${SUPABASE_URL}/rest/v1/ticker_store?id=eq.1`,
       {
@@ -721,18 +728,21 @@ async function syncToSupabase(store: typeof tickerStore): Promise<void> {
           'apikey':        SUPABASE_ANON_KEY,
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type':  'application/json',
-          'Prefer':        'return=minimal',
+          'Prefer':        'return=representation',  // return the updated row so we can verify
         },
-        body: JSON.stringify({ data: store, updated_at: new Date().toISOString() }),
+        body,
       }
     );
+    const text = await r.text();
     if (r.ok) {
-      origLog(`  ✓  Supabase synced (${r.status})`);
+      const sections = store?.sections?.length ?? 0;
+      const total    = store?.sections?.reduce((a,s) => a + s.items.length, 0) ?? 0;
+      origLog(`  ✓  Supabase synced — ${sections} section(s), ${total} records`);
     } else {
-      origError(`  ⚠  Supabase sync failed: ${r.status} ${await r.text()}`);
+      origError(`  ✗  Supabase sync failed: HTTP ${r.status} — ${text}`);
     }
   } catch (e: any) {
-    origError(`  ⚠  Supabase sync error: ${e.message}`);
+    origError(`  ✗  Supabase sync error: ${e.message}`);
   }
 }
 
