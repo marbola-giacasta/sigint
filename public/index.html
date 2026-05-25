@@ -132,72 +132,70 @@ tr:hover td{background:var(--bg3)}
     }
 
     
-    /* ── MOBILE ─────────────────────────────────────────────────────────────── */
+    
+    /* ════════════════════════════════════════════════════════
+       MOBILE  — complete rewrite, !important where needed
+       ════════════════════════════════════════════════════════ */
     @media (max-width: 768px) {
 
-      /* Let the whole page scroll vertically — no fixed heights */
-      html, body { height: auto; overflow-y: auto; }
-      .app  { height: auto; flex-direction: column; }
+      /* ── Kill fixed heights so page can scroll naturally ── */
+      html, body        { height:auto !important; overflow-y:auto !important; }
+      .app              { height:auto !important; flex-direction:column !important; }
+      .main             { flex-direction:column !important; height:auto !important; }
 
-      /* Topbar: two rows on mobile */
+      /* ── Topbar: two rows, smaller ── */
       .topbar {
-        flex-wrap: wrap;
-        height: auto;
-        padding: 10px 12px;
-        gap: 6px;
+        height:auto !important; flex-wrap:wrap !important;
+        padding:8px 10px !important; gap:6px !important;
       }
-      .topbar-title { font-size: 14px; width: 100%; }
-      .tag { font-size: 10px; }
+      .topbar-title     { font-size:13px !important; width:100% !important; }
+      .tag              { font-size:9px !important; padding:1px 5px !important; }
+      .status-panel     { flex-wrap:wrap !important; border-left:none !important; padding-left:0 !important; font-size:9px !important; }
 
-      /* Topbar action buttons: second row */
-      .topbar > div[style] {
-        width: 100%;
-        flex-wrap: wrap;
-        margin-left: 0 !important;
-        gap: 6px !important;
-      }
-      .status-panel { flex-wrap: wrap; border-left: none; padding-left: 0; }
-
-      /* Main area: sidebar on top, content below — vertical stack */
-      .main { flex-direction: column; }
-
-      /* Sidebar: full width, normal vertical layout, no fixed height */
+      /* ── Sidebar: full width, normal vertical flow ── */
       .sidebar {
-        width: 100% !important;
-        height: auto;
-        overflow-y: visible;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
+        width:100% !important; height:auto !important;
+        border-right:none !important;
+        border-bottom:1px solid var(--border) !important;
+        overflow-y:visible !important; flex-shrink:0 !important;
       }
 
-      /* Sidebar sections get normal padding */
-      .sidebar > div { padding: 12px; }
+      /* ── Mode list: horizontal scroll ── */
+      .mode-list {
+        display:flex !important; flex-direction:row !important;
+        overflow-x:auto !important; gap:4px !important;
+        padding-bottom:6px !important; flex-wrap:nowrap !important;
+        -webkit-overflow-scrolling:touch !important;
+      }
+      .mode-list > div  { flex-shrink:0 !important; }
+      .mode-list > div p{ display:none !important; }
 
-      /* Platform pills wrap */
-      .platform-pills { flex-wrap: wrap; gap: 6px; }
+      /* ── Platform pills: wrap ── */
+      .platform-pills   { flex-wrap:wrap !important; }
 
-      /* Mode list: full width vertical list */
-      .mode-list { flex-direction: column; gap: 4px; }
-      .mode-list > div { width: 100%; }
+      /* ── Content: auto height ── */
+      .content          { height:auto !important; }
 
-      /* Content area: auto height, scrolls with page */
-      .content { height: auto; min-height: 50vh; }
+      /* ── Tabs: horizontal scroll ── */
+      .tabs             { overflow-x:auto !important; white-space:nowrap !important; flex-wrap:nowrap !important; }
+      .tab              { font-size:11px !important; padding:8px 10px !important; flex-shrink:0 !important; }
 
-      /* Log panel: fixed height so it doesn't grow forever */
-      .log-panel { height: 40vh !important; min-height: 200px; }
+      /* ── Log panel: fixed height ── */
+      .log-panel        { height:50vh !important; min-height:220px !important; flex:none !important; }
 
-      /* Inputs full width */
-      textarea, input[type=text], select { width: 100% !important; }
+      /* ── Table: horizontal scroll ── */
+      .table-wrap       { overflow-x:auto !important; -webkit-overflow-scrolling:touch !important; }
 
-      /* Buttons full width */
-      .btn-primary.btn-full,
-      .btn.btn-full { width: 100% !important; }
+      /* ── Job list in history tab: full scroll ── */
+      .job-list         { max-height:none !important; }
 
-      /* Job history compact */
-      .job-list { max-height: 200px; overflow-y: auto; }
+      /* ── Full width inputs/buttons ── */
+      textarea, select  { width:100% !important; box-sizing:border-box !important; }
+      .btn-primary.btn-full { width:100% !important; }
 
-      /* Table scroll */
-      .table-wrap { overflow-x: auto; }
+      /* ── Danger buttons: smaller on mobile ── */
+      .danger-btn       { font-size:9px !important; padding:3px 6px !important; }
+      .btn              { font-size:10px !important; }
     }
 
     </style>
@@ -991,7 +989,6 @@ function App(){
         <div className="sidebar">
           <BrowserPanel/>
           <ScrapeForm onJobStart={handleStart}/>
-          <div style={{borderTop:'1px solid var(--border)'}}><JobHistory activeId={jobId} onSelect={handleSelect}/></div>
         </div>
         <div className="content">
           <div className="tabs">
