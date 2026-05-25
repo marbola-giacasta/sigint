@@ -346,6 +346,51 @@ body {
   .col-ts { padding: 0 10px 0 4px; font-size: 9px; }
   #statusbar { font-size: 8px; padding: 0 10px; gap: 10px; height: 20px; }
 }
+
+/* ── EXPANDABLE ROWS ─────────────────────────────────────────────────────── */
+.data-row { cursor: pointer; transition: background .1s; }
+.data-row:hover { background: rgba(0,0,0,.04); }
+.data-row.expanded { background: rgba(0,40,80,.05); border-bottom: none !important; }
+.expand-panel {
+  display: none;
+  grid-column: 1 / -1;
+  padding: 10px 16px 14px 16px;
+  border-bottom: 1px solid var(--rule);
+  background: rgba(0,30,60,.04);
+  font-size: var(--fs-sm);
+}
+.expand-panel.open { display: block; }
+.expand-sub-header {
+  font-size: 8px; letter-spacing: .2em; color: var(--ink3);
+  text-transform: uppercase; margin-bottom: 6px;
+  border-bottom: 1px solid var(--rule2); padding-bottom: 3px;
+}
+.expand-field { margin-bottom: 8px; }
+.expand-label { font-size: 9px; color: var(--ink3); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 2px; }
+.expand-value { color: var(--ink); line-height: 1.5; }
+.expand-marquee {
+  overflow: hidden; white-space: nowrap;
+  animation: marquee-expand 20s linear infinite;
+  color: var(--ink2);
+}
+@keyframes marquee-expand { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+@media (max-width: 640px) {
+  #masthead { flex-wrap: wrap; gap: 6px; padding: 8px 12px 5px; }
+  #masthead-title { font-size: 16px; }
+  #masthead-sub { display: none; }
+  #masthead-clock { font-size: 8px; }
+  #controls { gap: 8px; padding: 4px 10px; flex-wrap: wrap; }
+  #search-input { width: 120px; font-size: 10px; }
+  .sort-btn { font-size: 9px; padding: 1px 6px; }
+  .ctrl-label { display: none; }
+  .data-row { grid-template-columns: 90px 1fr 70px !important; }
+  .col-header { grid-template-columns: 90px 1fr 70px !important; }
+  .section-header { grid-template-columns: 90px 1fr 70px !important; font-size: 8px !important; padding: 4px 8px 2px !important; }
+  .col-source { padding: 0 4px 0 8px; font-size: 9px; }
+  .col-ts { padding: 0 8px 0 4px; font-size: 9px; }
+  #statusbar { font-size: 8px !important; gap: 8px !important; padding: 0 8px !important; }
+}
 </style>
 </head>
 <body>
@@ -473,13 +518,28 @@ function extractCols(item, platform, mode) {
 }
 
 // ── Sort comparator ───────────────────────────────────────────────────────────
+// Convert "3d ago", "2mo ago", "Streamed 5d ago", "1y ago" → seconds-ago number for sorting
+function tsToSeconds(ts) {
+  if (!ts) return Infinity;
+  const s = ts.replace(/^Streamed\s*/i, '').replace(/\s*ago$/i, '').trim();
+  const n = parseFloat(s);
+  if (isNaN(n)) return Infinity;
+  if (/y/.test(s))   return n * 365 * 86400;
+  if (/mo/.test(s))  return n * 30  * 86400;
+  if (/w/.test(s))   return n * 7   * 86400;
+  if (/d/.test(s))   return n * 86400;
+  if (/h/.test(s))   return n * 3600;
+  if (/min/.test(s)) return n * 60;
+  return Infinity;
+}
+
 function sortItems(items, platform, mode) {
   const copy = items.map(it => ({ ...it, _cols: extractCols(it, platform, mode) }));
   copy.sort((a, b) => {
     const ac = a._cols, bc = b._cols;
     switch (sortMode) {
-      case 'date-desc': return (bc.ts || '').localeCompare(ac.ts || '');
-      case 'date-asc':  return (ac.ts || '').localeCompare(bc.ts || '');
+      case 'date-desc': return tsToSeconds(ac.ts) - tsToSeconds(bc.ts);
+      case 'date-asc':  return tsToSeconds(bc.ts) - tsToSeconds(ac.ts);
       case 'source-asc':  return ac.author.localeCompare(bc.author);
       case 'content-asc': return ac.content.localeCompare(bc.content);
       default: return 0;
@@ -507,6 +567,66 @@ function highlight(text) {
 }
 
 // ── Build one data row ────────────────────────────────────────────────────────
+function buildExpandPanel(item, platform, mode) {
+  const d = item;
+  const fields = [];
+
+  // Gather all interesting extra fields per platform
+  if (platform === 'youtube') {
+    if (d.viewCount)     fields.push({ label: 'Views',       value: String(d.viewCount) });
+    if (d.uploadDate)    fields.push({ label: 'Published',   value: String(d.uploadDate) });
+    if (d.duration)      fields.push({ label: 'Duration',    value: String(d.duration) });
+    if (d.description)   fields.push({ label: 'Description', value: String(d.description).slice(0,300), marquee: true });
+    if (d.channelName)   fields.push({ label: 'Channel',     value: String(d.channelName) });
+    if (d.url)           fields.push({ label: 'URL',         value: d.url, link: true });
+    // Comments if present
+    if (Array.isArray(d.topComments) && d.topComments.length) {
+      fields.push({ label: 'TOP COMMENTS', header: true });
+      d.topComments.slice(0,5).forEach((cm,i) => {
+        fields.push({ label: `  ${i+1}. ${cm.author||'—'}`, value: String(cm.text||'').slice(0,200) });
+      });
+    }
+  } else if (platform === 'reddit') {
+    if (d.score)         fields.push({ label: 'Score',    value: String(d.score) });
+    if (d.numComments)   fields.push({ label: 'Comments', value: String(d.numComments) });
+    if (d.createdUtc)    fields.push({ label: 'Posted',   value: String(d.createdUtc).slice(0,10) });
+    if (d.selfText)      fields.push({ label: 'Body',     value: String(d.selfText).slice(0,400), marquee: true });
+    if (d.subreddit)     fields.push({ label: 'Subreddit',value: 'r/' + d.subreddit });
+    if (d.author)        fields.push({ label: 'Author',   value: 'u/' + d.author });
+    if (d.permalink)     fields.push({ label: 'URL',      value: d.permalink, link: true });
+  } else if (platform === 'instagram') {
+    if (d.likes)         fields.push({ label: 'Likes',       value: String(d.likes) });
+    if (d.commentsCount) fields.push({ label: 'Comments',    value: String(d.commentsCount) });
+    if (d.timestamp)     fields.push({ label: 'Posted',      value: String(d.timestamp).slice(0,10) });
+    if (d.description||d.caption) fields.push({ label: 'Caption', value: String(d.description||d.caption).slice(0,300), marquee: true });
+    if (d.followers)     fields.push({ label: 'Followers',   value: String(d.followers) });
+  } else if (platform === 'x') {
+    if (d.likes)         fields.push({ label: 'Likes',    value: String(d.likes) });
+    if (d.retweets)      fields.push({ label: 'Retweets', value: String(d.retweets) });
+    if (d.replies)       fields.push({ label: 'Replies',  value: String(d.replies) });
+    if (d.timestamp)     fields.push({ label: 'Posted',   value: String(d.timestamp).slice(0,10) });
+    if (d.tweetUrl||d.url) fields.push({ label: 'URL',   value: d.tweetUrl||d.url, link: true });
+  }
+
+  if (!fields.length) return null;
+
+  const panel = document.createElement('div');
+  panel.className = 'expand-panel';
+
+  let html = `<div class="expand-sub-header">◈ FULL RECORD · ${platform.toUpperCase()} · ${mode.replace(/-/g,' ').toUpperCase()}</div>`;
+  const grid = fields.map(f => {
+    if (f.header) return `<div class="expand-sub-header" style="margin-top:8px">${escHtml(f.label)}</div>`;
+    const val = f.link
+      ? `<a href="${escHtml(f.value)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent2)">${escHtml(f.value.slice(0,60))}</a>`
+      : f.marquee
+        ? `<div class="expand-marquee"><span>${escHtml(f.value)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${escHtml(f.value)}</span></div>`
+        : `<span class="expand-value">${escHtml(f.value)}</span>`;
+    return `<div class="expand-field"><div class="expand-label">${escHtml(f.label)}</div>${val}</div>`;
+  }).join('');
+  panel.innerHTML = html + grid;
+  return panel;
+}
+
 function buildRow(item, platform, mode, isNew) {
   const { author, content, ts, url } = item._cols || extractCols(item, platform, mode);
   const row = document.createElement('div');
@@ -514,22 +634,40 @@ function buildRow(item, platform, mode, isNew) {
 
   const charCount = Math.max(content.length, 30);
   const duration  = Math.max(8, charCount * 0.16);
-
-  // Highlighted content (if search is active, matched words are highlighted)
   const contentHighlighted = highlight(content);
-
-  // Wrap in anchor if URL present
   const contentHtml = url
     ? `<a class="col-content-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escHtml(url.slice(0,80))}">${contentHighlighted}</a>`
     : contentHighlighted;
 
   row.innerHTML = `
-    <div class="col-source">${highlight(author)}</div>
+    <div class="col-source" title="Click to expand full record">${highlight(author)}</div>
     <div class="col-content-wrap">
       <span class="col-content-inner" style="animation-duration:${duration}s">${contentHtml}</span>
     </div>
     <div class="col-ts">${escHtml(ts)}</div>
   `;
+
+  // Build expand panel
+  const panel = buildExpandPanel(item, platform, mode);
+  if (panel) {
+    // Click on SOURCE column to toggle expand
+    const sourceCol = row.querySelector('.col-source');
+    sourceCol.style.cursor = 'pointer';
+    let expanded = false;
+    sourceCol.addEventListener('click', (e) => {
+      e.stopPropagation();
+      expanded = !expanded;
+      row.classList.toggle('expanded', expanded);
+      if (expanded) {
+        panel.classList.add('open');
+        row.after(panel);
+      } else {
+        panel.classList.remove('open');
+        panel.remove();
+      }
+    });
+  }
+
   return row;
 }
 
