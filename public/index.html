@@ -130,72 +130,114 @@ tr:hover td{background:var(--bg3)}
       .params-section { max-height: 140px; }
       .log-panel { height: calc(100vh - 380px) !important; }
     }
-
-    
-    
-    /* ════════════════════════════════════════════════════════
-       MOBILE  — complete rewrite, !important where needed
-       ════════════════════════════════════════════════════════ */
+    /* ══ MOBILE ═══════════════════════════════════════════════════════════════ */
     @media (max-width: 768px) {
 
-      /* ── Kill fixed heights so page can scroll naturally ── */
-      html, body        { height:auto !important; overflow-y:auto !important; }
-      .app              { height:auto !important; flex-direction:column !important; }
-      .main             { flex-direction:column !important; height:auto !important; }
-
-      /* ── Topbar: two rows, smaller ── */
+      /* ── Topbar: wrap tags onto 2nd line ── */
       .topbar {
-        height:auto !important; flex-wrap:wrap !important;
-        padding:8px 10px !important; gap:6px !important;
+        height: auto !important;
+        flex-wrap: wrap !important;
+        padding: 8px 10px !important;
+        gap: 4px !important;
       }
-      .topbar-title     { font-size:13px !important; width:100% !important; }
-      .tag              { font-size:9px !important; padding:1px 5px !important; }
-      .status-panel     { flex-wrap:wrap !important; border-left:none !important; padding-left:0 !important; font-size:9px !important; }
-
-      /* ── Sidebar: full width, normal vertical flow ── */
-      .sidebar {
-        width:100% !important; height:auto !important;
-        border-right:none !important;
-        border-bottom:1px solid var(--border) !important;
-        overflow-y:visible !important; flex-shrink:0 !important;
+      .topbar-title { font-size: 13px !important; }
+      .tag          { font-size: 9px !important; padding: 1px 5px !important; }
+      .status-panel {
+        width: 100% !important;
+        border-left: none !important;
+        padding-left: 0 !important;
+        font-size: 9px !important;
+        flex-wrap: wrap !important;
+        margin-top: 2px !important;
       }
+      .danger-btn { font-size: 9px !important; padding: 2px 5px !important; }
 
-      /* ── Mode list: horizontal scroll ── */
+      /* ── Mode list: compact, horizontal scroll, NO subtitle ── */
       .mode-list {
-        display:flex !important; flex-direction:row !important;
-        overflow-x:auto !important; gap:4px !important;
-        padding-bottom:6px !important; flex-wrap:nowrap !important;
-        -webkit-overflow-scrolling:touch !important;
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        padding: 4px 0 8px !important;
+        -webkit-overflow-scrolling: touch !important;
       }
-      .mode-list > div  { flex-shrink:0 !important; }
-      .mode-list > div p{ display:none !important; }
+      .mode-list > div {
+        flex-shrink: 0 !important;
+        min-width: 90px !important;
+        max-width: 110px !important;
+        padding: 8px 10px !important;
+      }
+      /* Hide subtitle text inside mode cards */
+      .mode-list > div p,
+      .mode-list > div > p,
+      .mode-list p { display: none !important; }
+      /* Make mode card title font smaller */
+      .mode-list > div > div,
+      .mode-list > div span { font-size: 11px !important; }
+
+      /* ── Sidebar: full width vertical stack ── */
+      .sidebar {
+        width: 100% !important;
+        height: auto !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--border) !important;
+        overflow-y: visible !important;
+      }
 
       /* ── Platform pills: wrap ── */
-      .platform-pills   { flex-wrap:wrap !important; }
+      .platform-pills { flex-wrap: wrap !important; }
 
-      /* ── Content: auto height ── */
-      .content          { height:auto !important; }
+      /* ── Parameters: scrollable, full width ── */
+      .sidebar textarea,
+      .sidebar input[type="text"],
+      .sidebar select {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        font-size: 13px !important;
+      }
+      .sidebar textarea {
+        min-height: 80px !important;
+        max-height: 140px !important;
+      }
+
+      /* ── Buttons full width ── */
+      .btn-primary.btn-full { width: 100% !important; }
+
+      /* ── Content area ── */
+      .content { height: auto !important; }
 
       /* ── Tabs: horizontal scroll ── */
-      .tabs             { overflow-x:auto !important; white-space:nowrap !important; flex-wrap:nowrap !important; }
-      .tab              { font-size:11px !important; padding:8px 10px !important; flex-shrink:0 !important; }
+      .tabs {
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        flex-wrap: nowrap !important;
+      }
+      .tab {
+        font-size: 10px !important;
+        padding: 8px 10px !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+      }
 
-      /* ── Log panel: fixed height ── */
-      .log-panel        { height:50vh !important; min-height:220px !important; flex:none !important; }
+      /* ── Log panel: fixed height, no vertical text ── */
+      .log-panel {
+        height: 45vh !important;
+        min-height: 200px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        word-break: break-word !important;
+      }
+      .log-text {
+        word-break: break-word !important;
+        white-space: pre-wrap !important;
+        min-width: 0 !important;
+        flex: 1 !important;
+      }
 
       /* ── Table: horizontal scroll ── */
-      .table-wrap       { overflow-x:auto !important; -webkit-overflow-scrolling:touch !important; }
-
-      /* ── Job list in history tab: full scroll ── */
-      .job-list         { max-height:none !important; }
-
-      /* ── Full width inputs/buttons ── */
-      textarea, select  { width:100% !important; box-sizing:border-box !important; }
-      .btn-primary.btn-full { width:100% !important; }
-
-      /* ── Danger buttons: smaller on mobile ── */
-      .danger-btn       { font-size:9px !important; padding:3px 6px !important; }
-      .btn              { font-size:10px !important; }
+      .table-wrap { overflow-x: auto !important; }
+      .job-list   { max-height: none !important; }
     }
 
     </style>
@@ -688,12 +730,12 @@ function ScrapeForm({onJobStart}){
       </div>
       <div className="sb-section">
         <div className="sb-label">Mode</div>
-        <div className="mode-list" style={isMobile?{display:"flex",flexDirection:"row",overflowX:"auto",flexWrap:"nowrap",gap:"6px",paddingBottom:"6px"}:{}}>
+        <div className="mode-list" style={isMobile?{display:"flex",flexDirection:"row",overflowX:"auto",flexWrap:"nowrap",gap:"6px",paddingBottom:"8px",WebkitOverflowScrolling:"touch"}:{}}>
           {modes.map(m=>(
             <div key={m.id} className={`mode-item ${mode===m.id?'active':''}`}
               onClick={()=>{setMode(m.id);setInp({});setFilter(null);}}>
               <span className="mode-icon">{m.icon}</span>
-              <div><div style={{fontWeight:600}}>{m.label}</div><div style={{fontSize:10,color:'var(--text3)'}}>{m.desc}</div></div>
+              <div><div style={{fontWeight:600,fontSize:isMobile?11:undefined}}>{m.label}</div>{!isMobile&&<div style={{fontSize:10,color:'var(--text3)'}}>{m.desc}</div>}</div>
             </div>
           ))}
         </div>
