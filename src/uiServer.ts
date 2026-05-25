@@ -702,8 +702,8 @@ app.post('/api/publish', (req: any, res: any): void => {
  */
 // ── Supabase sync ─────────────────────────────────────────────────────────────
 // Credentials come from environment variables — never hardcode them.
-const SUPABASE_URL      = process.env.SUPABASE_URL      ?? '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
+const SUPABASE_URL      = 'https://qqmidswgsqmimxrlyqru.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbWlkc3dnc3FtaW14cmx5cXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTU3MTgsImV4cCI6MjA5NTIzMTcxOH0.UDgz4TfVM7t4jLNA-IKB8C1SVhuJj_jKXac6PApo544';
 
 /**
  * Pushes ticker data to Supabase so the public ticker page can read it
