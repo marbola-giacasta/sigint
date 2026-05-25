@@ -140,8 +140,8 @@ tr:hover td{background:var(--bg3)}
     .mobile .status-panel { width:100%; border-left:none; padding:0; font-size:9px; flex-wrap:wrap; margin-top:2px; }
     .mobile .danger-btn { font-size:9px; padding:2px 5px; }
     .mobile .main { flex-direction:column !important; height:auto; overflow:visible; }
-    .mobile .sidebar { width:100% !important; height:auto; max-height:none; border-right:none; border-bottom:1px solid var(--border); overflow-y:visible; flex-shrink:0; }
-    .mobile .content { width:100%; height:auto; flex:none; min-height:60vh; }
+    .mobile .sidebar { width:100% !important; height:auto; max-height:70vh; border-right:none; border-bottom:1px solid var(--border); overflow-y:auto; -webkit-overflow-scrolling:touch; flex-shrink:0; }
+    .mobile .content { width:100%; height:auto; flex:none; min-height:60vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
     .mobile .mode-list { display:flex; flex-direction:row; overflow-x:auto; flex-wrap:nowrap; gap:6px; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
     .mobile .mode-list > div { flex-shrink:0; min-width:80px; max-width:110px; }
     .mobile .platform-pills { flex-wrap:wrap; }
