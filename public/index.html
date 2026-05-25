@@ -761,7 +761,9 @@ function LogPanel({jobId}){
     setLogs([]);setDone(false);if(!jobId)return;
     if(esRef.current)esRef.current.close();
     const es=new EventSource(`/api/stream/${jobId}`);esRef.current=es;
-    es.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='end'){setDone(true);es.close();return;}setLogs(p=>[...p,d]);setTimeout(()=>ref.current?.scrollTo(0,1e9),10);};
+    let _buf=[],_raf=null;
+    const _flush=()=>{const b=_buf.splice(0);setLogs(p=>{const n=[...p,...b];return n.length>500?n.slice(-500):n;});setTimeout(()=>ref.current?.scrollTo(0,1e9),30);_raf=null;};
+    es.onmessage=e=>{let d;try{d=JSON.parse(e.data);}catch{return;}if(d.type==='end'){setDone(true);es.close();return;}_buf.push(d);if(!_raf)_raf=requestAnimationFrame(_flush);};
     return()=>es.close();
   },[jobId]);
   const fmt=ms=>new Date(ms).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
