@@ -926,6 +926,7 @@ function App(){
   const[tickerMsg,setTickerMsg]=useState('');
   const[adminMsg,setAdminMsg]=React.useState('');
   const serverStatus=useServerStatus();
+  const isMobile=useMobile();
   const handleStart=(id,p,m)=>{setJobId(id);setPlat(p);setMode(m);setTab('log');};
   const handleSelect=(id,p,m)=>{setJobId(id);if(p)setPlat(p);if(m)setMode(m);setTab('results');};
   const exportXlsx=async()=>{
