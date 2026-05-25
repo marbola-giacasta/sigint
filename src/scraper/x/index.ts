@@ -230,7 +230,11 @@ async function scrollAndCollect(page, collector, contextQuery, contextType, targ
 // ── Search ────────────────────────────────────────────────────────────────────
 
 export async function searchXPosts(page, keyword, limitConfig, filterKey = 'top') {
-  console.log(`  → X search: "${keyword}" [${filterKey}]`);
+  const _xt0 = Date.now();
+  console.log(`  ┌─ X Search ────────────────────────────────────────`);
+  console.log(`  │  Query  : "${keyword}"  [filter: ${filterKey}]`);
+  console.log(`  │  Target : ${limitConfig.mode==='all'?'ALL':'Top '+limitConfig.count}`);
+  console.log(`  └───────────────────────────────────────────────────`);
 
   const filterParam = X_SEARCH_FILTERS[filterKey]?.param ?? '';
   const url = `${BASE}/search?q=${encodeURIComponent(keyword)}&src=typed_query${filterParam}`;
@@ -244,7 +248,16 @@ export async function searchXPosts(page, keyword, limitConfig, filterKey = 'top'
   collector.stop();
 
   const limited = applyLimit(results, limitConfig);
-  console.log(`  Found ${limited.length} tweet(s) for "${keyword}"`);
+  limited.slice(0,8).forEach((t,i) => {
+    const auth = String((t as any).author     ||'').slice(0,16).padEnd(16);
+    const txt  = String((t as any).text       ||'').replace(/\n/g,' ').slice(0,48).padEnd(48);
+    const lk   = String((t as any).likes      ||0).padStart(6,' ');
+    const rt   = String((t as any).retweets   ||0).padStart(5,' ');
+    const dt   = String((t as any).timestamp  ||'').slice(0,10);
+    console.log(`  ${String(i+1).padStart(3,' ')}  @${auth}  ${lk}♥  ${rt}↻  ${dt}  ${txt}`);
+  });
+  const _xel = ((Date.now()-_xt0)/1000).toFixed(1);
+  console.log(`  ✓ X search "${keyword}" — ${limited.length} tweets in ${_xel}s`);
 
   if (limited.length === 0) {
     console.log('  ⚠  0 results. X search requires login — ensure you are logged in.');
@@ -260,7 +273,11 @@ export async function scrapeXProfile(page, usernameOrUrl, limitConfig) {
     .replace(/^@/, '')
     .replace(/^https?:\/\/(x|twitter)\.com\//i, '')
     .split('/')[0];
-  console.log(`  → X profile: @${clean}`);
+  const _xp0 = Date.now();
+  console.log(`  ┌─ X Profile ────────────────────────────────────────`);
+  console.log(`  │  Handle : @${clean}`);
+  console.log(`  │  Target : ${limitConfig.mode==='all'?'ALL':'Top '+limitConfig.count}`);
+  console.log(`  └───────────────────────────────────────────────────`);
 
   const collector = createXCollector(page);
   await page.goto(`${BASE}/${clean}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
@@ -276,7 +293,14 @@ export async function scrapeXProfile(page, usernameOrUrl, limitConfig) {
   collector.stop();
 
   const limited = applyLimit(tweets, limitConfig);
-  console.log(`  Collected ${limited.length} tweet(s) from @${clean}`);
+  limited.slice(0,5).forEach((t,i) => {
+    const txt = String((t as any).text||'').replace(/\n/g,' ').slice(0,60);
+    const lk  = String((t as any).likes||0).padStart(6,' ');
+    const dt  = String((t as any).timestamp||'').slice(0,10);
+    console.log(`  ${String(i+1).padStart(3,' ')}  ${lk}♥  ${dt}  ${txt}`);
+  });
+  const _xpe = ((Date.now()-_xp0)/1000).toFixed(1);
+  console.log(`  ✓ @${clean} — ${limited.length} tweets in ${_xpe}s`);
   return { meta: { username: clean, ...meta }, tweets: limited };
 }
 
@@ -284,7 +308,10 @@ export async function scrapeXProfile(page, usernameOrUrl, limitConfig) {
 
 export async function scrapeXThread(page, tweetUrl, limitConfig) {
   const normUrl = tweetUrl.trim().replace('twitter.com', 'x.com');
-  console.log(`  → X thread: ${normUrl}`);
+  const _xth0 = Date.now();
+  console.log(`  ┌─ X Thread ────────────────────────────────────────`);
+  console.log(`  │  URL: ${normUrl.slice(0,60)}`);
+  console.log(`  └───────────────────────────────────────────────────`);
 
   const collector = createXCollector(page);
   await page.goto(normUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
@@ -295,6 +322,13 @@ export async function scrapeXThread(page, tweetUrl, limitConfig) {
   collector.stop();
 
   const limited = applyLimit(tweets, limitConfig);
-  console.log(`  Collected ${limited.length} reply/tweet(s)`);
+  limited.slice(0,5).forEach((t,i) => {
+    const auth = String((t as any).author||'').slice(0,16).padEnd(16);
+    const txt  = String((t as any).text||'').replace(/\n/g,' ').slice(0,50);
+    const lk   = String((t as any).likes||0).padStart(6,' ');
+    console.log(`  ${String(i+1).padStart(3,' ')}  @${auth}  ${lk}♥  ${txt}`);
+  });
+  const _xthe = ((Date.now()-_xth0)/1000).toFixed(1);
+  console.log(`  ✓ Thread — ${limited.length} tweets in ${_xthe}s`);
   return limited;
 }

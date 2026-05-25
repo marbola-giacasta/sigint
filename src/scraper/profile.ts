@@ -9,19 +9,22 @@ import { safeGoto, dismissPopups } from '../browser/page.js';
 import { createResponseCollector } from './interceptor.js';
 
 function extractUser(json) {
-  if((json as any)?.data?.user) return json.data.user;
-  const x=(json as any)?.data?.xdt_api__v1__users__web_profile_info__connection;
+  if(json?.data?.user) return json.data.user;
+  const x=json?.data?.xdt_api__v1__users__web_profile_info__connection;
   return x?.user??null;
 }
 
 export async function scrapeProfileSummary(page,username){
-  console.log(`\n  → Fetching profile: ${username}`);
+  console.log(`  ┌─ Instagram Profile ─────────────────────────────`);
+  console.log(`  │  Username : @${username}`);
+  console.log(`  └───────────────────────────────────────────────────`);
+  const _ig0 = Date.now();;
   const c=createResponseCollector(page,url=>url.includes('/web_profile_info/'),extractUser);
   await safeGoto(page,`${CONFIG.instagram.baseUrl}/${username}/`);
   await sleep(1_500); await dismissPopups(page); c.stop();
   let u=c.results[0]??null;
   if(!u) u=await page.evaluate(()=>{
-    if((window as any)._sharedData?.entry_data?.ProfilePage?.[0]?.graphql?.user) return (window as any)._sharedData.entry_data.ProfilePage[0].graphql.user;
+    if(window._sharedData?.entry_data?.ProfilePage?.[0]?.graphql?.user) return window._sharedData.entry_data.ProfilePage[0].graphql.user;
     for(const s of document.querySelectorAll('script')){const t=s.textContent??'';if(t.includes('"biography"')&&t.includes('"follower_count"')){try{const m=t.match(/\{.*"biography".*"follower_count".*\}/s);if(m)return JSON.parse(m[0]);}catch{}}}
     return null;
   }).catch(()=>null);

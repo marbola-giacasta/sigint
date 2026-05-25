@@ -19,13 +19,21 @@ export async function scrapeProfileOnPage(page, username, limitConfig) {
     if (!isPageAlive(page)) throw new Error('Page is closed or disconnected');
 
     summary = await scrapeProfileSummary(page, username);
-    console.log(
+    console.log(`  ┌─ Instagram Profile ─────────────────────────────`);
+  console.log(
       `  Summary — followers: ${(summary as any).followers || '?'}, ` +
       `posts: ${(summary as any).posts || '?'}, following: ${(summary as any).following || '?'}`,
     );
 
     console.log(`  [${username}] Collecting posts...`);
     posts = await scrapePostsFeed(page, username, (summary as any).userId, limitConfig);
+    posts.slice(0,5).forEach((p: any,i: number) => {
+      const desc = String(p.description||p.caption||'').replace(/\n/g,' ').slice(0,50).padEnd(50);
+      const lk   = String(p.likes||'?').padStart(7,' ');
+      const cm   = String(p.commentsCount||'?').padStart(5,' ');
+      const dt   = String(p.timestamp||'').slice(0,10);
+      console.log(`  ${String(i+1).padStart(3,' ')}  ${lk}♥  ${cm}💬  ${dt}  ${desc}`);
+    });
     console.log(`  [${username}] Found ${posts.length} post(s). Fetching per-post details...`);
 
     for (let i = 0; i < posts.length; i++) {

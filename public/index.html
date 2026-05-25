@@ -687,7 +687,7 @@ function ScrapeForm({onJobStart}){
       </div>
       <div className="sb-section">
         <div className="sb-label">Mode</div>
-        <div className="mode-list">
+        <div className="mode-list" style={isMobile?{display:"flex",flexDirection:"row",overflowX:"auto",flexWrap:"nowrap",gap:"6px",paddingBottom:"6px"}:{}}>
           {modes.map(m=>(
             <div key={m.id} className={`mode-item ${mode===m.id?'active':''}`}
               onClick={()=>{setMode(m.id);setInp({});setFilter(null);}}>
@@ -769,7 +769,7 @@ function LogPanel({jobId}){
   },[jobId]);
   const fmt=ms=>new Date(ms).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
   return(
-    <div ref={ref} className="log-panel">
+    <div ref={ref} className="log-panel" style={isMobile?{height:"45vh",minHeight:"200px",overflowY:"auto",overflowX:"hidden"}:{}}>
       {!jobId&&<div className="log-empty">Run a scrape to see live output here.</div>}
       {jobId&&!logs.length&&!done&&<div className="log-empty"><span className="spinner" style={{verticalAlign:'middle'}}/> Starting…</div>}
       {logs.map((l,i)=><div key={i} className={`log-line log-${l.type}`}><span className="log-time">{fmt(l.t)}</span><span className="log-text">{l.line}</span></div>)}
@@ -905,6 +905,19 @@ function useServerStatus() {
   },[]);
   return status;
 }
+
+// ── Mobile detection ──────────────────────────────────────────────────────────
+// We use JS instead of CSS media queries because React inline styles
+// override CSS. JS-detected layout bypasses that problem entirely.
+function useMobile() {
+  const [mobile, setMobile] = React.useState(window.innerWidth <= 768);
+  React.useEffect(() => {
+    const fn = () => setMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
 function App(){
   const [jobId,setJobId]=useState(null);const[plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
   const [tab,setTab]=useState('log');const[exporting,setExp]=useState(false);
@@ -985,13 +998,13 @@ function App(){
           </div>
         </div>
       </div>
-      <div className="main">
-        <div className="sidebar">
+      <div className="main" style={isMobile?{flexDirection:"column"}:{}}>
+        <div className="sidebar" style={isMobile?{width:"100%",borderRight:"none",borderBottom:"1px solid var(--border)",height:"auto",overflowY:"visible"}:{}}>
           <BrowserPanel/>
           <ScrapeForm onJobStart={handleStart}/>
         </div>
-        <div className="content">
-          <div className="tabs">
+        <div className="content" style={isMobile?{height:"auto",minHeight:"60vh"}:{}}>
+          <div className="tabs" style={isMobile?{overflowX:"auto",whiteSpace:"nowrap",display:"flex",flexWrap:"nowrap"}:{}}>
             <div className={`tab ${tab==='log'?'active':''}`} onClick={()=>setTab('log')}>📟 Live Log</div>
             <div className={`tab ${tab==='dashboard'?'active':''}`} onClick={()=>setTab('dashboard')}>📈 Dashboard</div>
             <div className={`tab ${tab==='results'?'active':''}`} onClick={()=>setTab('results')}>📊 Results Table</div>

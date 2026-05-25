@@ -219,7 +219,10 @@ function normaliseNode({ cr, isReply, parentAuthor }, videoUrl, videoTitle, inde
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export async function scrapeYoutubeComments(page, videoUrl, limitConfig) {
-  console.log(`  → YouTube comments: ${videoUrl}`);
+  const _startTime = Date.now();
+  console.log(`  ┌─ YouTube Comments ────────────────────────────────`);
+  console.log(`  │  Video: ${videoUrl?.slice(0,60)||''}`);
+  console.log(`  └───────────────────────────────────────────────────`);
 
   const collector = createResponseCollector(page, url => url.includes('youtubei/v1/next'), transformNext);
 
@@ -300,6 +303,13 @@ export async function scrapeYoutubeComments(page, videoUrl, limitConfig) {
   if (apiCount > 0) console.log(`  + ${apiCount} merged from API`);
 
   const comments = applyLimit([...seen.values()], limitConfig);
+  console.log(`  ── Comment sample (first 5) ──`);
+  comments.slice(0,5).forEach((cm,i)=>{
+    const auth = String((cm as any).author||'').slice(0,20).padEnd(20);
+    const txt  = String((cm as any).text  ||'').slice(0,50);
+    console.log(`  ${String(i+1).padStart(3,' ')}  ${auth}  ${txt}`);
+  });
+  const _elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
   console.log(`  ✓ Collected ${comments.length} comment(s) from "${(meta as any).title}" (${scrollsDone} scrolls)`);
   return { meta: { ...meta, videoUrl }, comments };
 }

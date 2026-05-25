@@ -145,7 +145,11 @@ function extractFromContinuation(json) {
  * @returns {Promise<object[]>}
  */
 export async function scrapeYoutubeSearch(page, keyword, limitConfig, filterParam = null) {
-  console.log(`  → YouTube search: "${keyword}"${filterParam ? ' [with filter]' : ''}`);
+  const startTime = Date.now();
+  console.log(`  ┌─ YouTube Search ──────────────────────────────────`);
+  console.log(`  │  Keyword  : "${keyword}"${filterParam ? ' [filtered: '+filterParam+']' : ''}`);
+  console.log(`  │  Target   : ${limitConfig.mode === 'all' ? 'ALL available' : limitConfig.count + ' results'}`);
+  console.log(`  └───────────────────────────────────────────────────`);
 
   const spPart    = filterParam ? `&sp=${filterParam}` : '';
   const searchUrl = `${YT.baseUrl}/results?search_query=${encodeURIComponent(keyword)}${spPart}`;
@@ -183,9 +187,14 @@ export async function scrapeYoutubeSearch(page, keyword, limitConfig, filterPara
       if (Array.isArray(batch)) rawRenderers.push(...batch);
     }
 
-    noNewCount = rawRenderers.length === before ? noNewCount + 1 : 0;
+    const newBatch = rawRenderers.length - before;
+    noNewCount = newBatch === 0 ? noNewCount + 1 : 0;
+    if (newBatch > 0) {
+      console.log(`  ↓  Scroll ${String(scrollsDone+1).padStart(2,'0')} — +${newBatch} new → ${rawRenderers.length} total`);
+    } else {
+      console.log(`  ·  Scroll ${String(scrollsDone+1).padStart(2,'0')} — no new (dry ${noNewCount}/3)`);
+    }
     if (rawRenderers.length >= target) break;
-
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)).catch(() => {});
     await sleep(YT.searchScrollPauseMs);
     scrollsDone++;
@@ -196,15 +205,25 @@ export async function scrapeYoutubeSearch(page, keyword, limitConfig, filterPara
   // Deduplicate by URL, then normalise
   const seenUrls = new Set();
   const results  = [];
+  console.log(`  Processing ${rawRenderers.length} raw renderers...`);
 
   for (const vr of rawRenderers) {
     if (!vr?.videoId || seenUrls.has(vr.videoId)) continue;
     seenUrls.add(vr.videoId);
     const row = normaliseVideoRenderer(vr, keyword, results.length);
-    if (row) results.push(row);
+    if (row) {
+      results.push(row);
+      const n   = String(results.length).padStart(3,' ');
+      const ttl = String(row.title       ||'').slice(0,52).padEnd(52);
+      const ch  = String(row.channelName ||'').slice(0,22).padEnd(22);
+      const vw  = String(row.viewCount   ||'').slice(0,14).padEnd(14);
+      const dt  = String(row.uploadDate  ||'').slice(0,13);
+      console.log(`  ${n}  ${ttl}  ${ch}  ${vw}  ${dt}`);
+    }
   }
 
   const limited = applyLimit(results, limitConfig);
-  console.log(`  Found ${limited.length} result(s) for "${keyword}"`);
+  const elapsed = ((Date.now() - startTime)/1000).toFixed(1);
+  console.log(`  ✓ "${keyword}" — ${limited.length}/${results.length} results kept  (${scrollsDone} scrolls, ${elapsed}s)`);
   return limited;
 }

@@ -227,6 +227,12 @@ export async function scrapeStories(page, username, userId, limitConfig) {
   collector.stop();
 
   const result = applyLimit(stories, limitConfig).map((s, i) => ({ ...s, index: i }));
-  console.log(`  → Found ${result.length} storie(s) for ${username}.`);
+  result.slice(0,5).forEach((s: any, i: number) => {
+      const type = s.isVideo ? 'VIDEO' : 'IMAGE';
+      const dt   = String(s.timestamp||'').slice(0,10);
+      const desc = String(s.description||'').slice(0,40);
+      console.log(`  ${String(i+1).padStart(3,' ')}  [${type}]  ${dt}  ${desc}`);
+    });
+    console.log(`  → Found ${result.length} storie(s) for ${username}.`);
   return result;
 }
