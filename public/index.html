@@ -25,7 +25,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-.app{display:flex;flex-direction:column;height:100%}
+.app{display:flex;flex-direction:column;height:100vh}
 .topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:52px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
 .topbar-title{font-size:16px;font-weight:800;letter-spacing:-.3px}
 .main{display:flex;flex:1;min-height:0}
@@ -133,7 +133,11 @@ tr:hover td{background:var(--bg3)}
     
     /* ════════ MOBILE ════════════════════════════════════════════════════════ */
     @media (max-width: 768px) {
-      html, body { height:auto !important; overflow-y:auto !important; }
+      /* Override the fixed-height desktop layout completely */
+      html         { height: auto !important; overflow-y: auto !important; }
+      body         { height: auto !important; overflow-y: auto !important; min-height: 100vh !important; }
+      #root        { height: auto !important; overflow: visible !important; }
+      .app         { height: auto !important; min-height: 0 !important; overflow: visible !important; }
       .app        { height:auto !important; }
 
       /* CRITICAL: force vertical stack — prevents 2-col layout when job starts */
