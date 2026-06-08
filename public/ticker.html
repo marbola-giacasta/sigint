@@ -577,8 +577,7 @@ function refreshTimestamps() {
 }
 setInterval(refreshTimestamps, 60_000);
 
-// Convert "3d ago"
-, "2mo ago", "Streamed 5d ago", "1y ago" → seconds-ago number for sorting
+// Convert relative strings like "3d ago", "2mo ago", "Streamed 5d ago" → seconds
 function tsToSeconds(ts) {
   if (!ts) return Infinity;
   const s = ts.replace(/^Streamed\s*/i, '').replace(/\s*ago$/i, '').trim();
