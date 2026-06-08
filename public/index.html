@@ -1055,8 +1055,7 @@ function CrossSearchForm({onJobStart}){
   const selStyle = {fontSize:11,padding:'3px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',width:'100%'};
 
   const run = async () => {
-    const kws = kw.trim().split('
-').map(s=>s.trim()).filter(Boolean);
+    const kws = kw.trim().split('\n').map(s=>s.trim()).filter(Boolean);
     if (!kws.length){ alert('Enter at least one keyword'); return; }
     const platforms = PLATS.filter(p=>sel[p.id]);
     if (!platforms.length){ alert('Select at least one platform'); return; }
