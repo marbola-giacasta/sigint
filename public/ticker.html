@@ -884,10 +884,11 @@ async function poll() {
     );
     if (!r.ok) return;
     const rows = await r.json();
-    if (!rows?.length || !rows[0]?.data?.pushedAt) return;
+    if (!rows?.length || !rows[0]?.data) return;
     const data = rows[0].data;
-    if (data.pushedAt !== lastPushedAt) {
-      lastPushedAt = data.pushedAt;
+    const thisPushedAt = data.pushedAt || data.updated_at || JSON.stringify(data).length;
+    if (thisPushedAt !== lastPushedAt) {
+      lastPushedAt = thisPushedAt;
       currentData  = data;
       renderFeed(data, lastPushedAt !== 0);
     }
