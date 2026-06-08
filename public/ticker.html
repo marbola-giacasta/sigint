@@ -510,8 +510,8 @@ function extractCols(item, platform, mode) {
     }
     author  = handle ? '@' + handle : '—';
     content = d.caption || d.description || d.text
-      || (d.likes ? '♥ ' + d.likes + (d.commentsCount ? '  💬 ' + d.commentsCount : '') : '')
-      || (d.shortcode ? '[Post]' : '');
+      || (d.likes && d.likes !== '?' ? '♥ ' + d.likes + (d.commentsCount && d.commentsCount !== '?' ? '  💬 ' + d.commentsCount : '') : '')
+      || (d.shortcode ? '📸 View post' : '—');
     ts      = d.timestamp ? String(d.timestamp).slice(0,10) : '';
     url     = d.url
       || (d.shortcode ? 'https://www.instagram.com/p/' + d.shortcode + '/' : '')

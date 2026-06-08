@@ -555,200 +555,156 @@ const X_FILTERS=[{label:'Latest (default)',value:null},{label:'Top tweets',value
 
 // ── Browser Panel ─────────────────────────────────────────────────────────────
 function BrowserPanel(){
-  const PLATFORMS = [
-    {id:'youtube',   label:'YouTube',   icon:'▶', color:'#ff4444'},
-    {id:'reddit',    label:'Reddit',    icon:'◉', color:'#ff6314'},
-    {id:'instagram', label:'Instagram', icon:'◈', color:'#c13584'},
-    {id:'x',         label:'X/Twitter', icon:'✦', color:'#8888ff'},
-    {id:'linkedin',   label:'LinkedIn',  icon:'in', color:'#0077b5'},
+  const PLAT_LOGINS = [
+    {id:'youtube',   label:'YouTube',   icon:'▶', color:'#ff4444', url:'https://accounts.google.com/signin'},
+    {id:'reddit',    label:'Reddit',    icon:'◉', color:'#ff6314', url:'https://www.reddit.com/login'},
+    {id:'instagram', label:'Instagram', icon:'◈', color:'#c13584', url:'https://www.instagram.com/accounts/login/'},
+    {id:'x',         label:'X/Twitter', icon:'✦', color:'#8888ff', url:'https://x.com/i/flow/login'},
+    {id:'linkedin',  label:'LinkedIn',  icon:'in', color:'#0077b5', url:'https://www.linkedin.com/login'},
   ];
 
-  const [browsers,  setBrowsers]  = React.useState([]);
-  const [status,    setStatus]    = React.useState({open:false,headless:true});
-  const [busy,      setBusy]      = React.useState(false);
-  const [msg,       setMsg]       = React.useState('');
+  const [browsers, setBrowsers] = React.useState([]);
+  const [selBrowser, setSelBrowser] = React.useState('');
+  const [headless, setHeadless]   = React.useState(true);
+  const [open, setOpen]           = React.useState(false);
+  const [busy, setBusy]           = React.useState(false);
+  const [msg,  setMsg]            = React.useState('');
   const [loginPlat, setLoginPlat] = React.useState('');
-  const [loginStep, setLoginStep] = React.useState('idle');
-  const [platSet,   setPlatSet]   = React.useState(
-    ()=>Object.fromEntries(['youtube','reddit','instagram','x','linkedin'].map(id=>[id,{browser:'',headless:true}]))
-  );
+  const [loginStep, setLoginStep] = React.useState('idle'); // idle | navigated | confirmed
 
-  const refresh = async()=>{
-    try{
+  const flash = (txt, ms=6000) => { setMsg(txt); setTimeout(()=>setMsg(''), ms); };
+
+  const refresh = async () => {
+    try {
       const d = await (await API('/api/browser/status')).json();
-      setStatus({open:d.open,headless:d.headless});
-      if(d.browsers?.length){
+      setOpen(d.open);
+      if (d.browsers?.length) {
         setBrowsers(d.browsers);
-        setPlatSet(prev=>{
-          const next={...prev};
-          ['youtube','reddit','instagram','x'].forEach(id=>{
-            if(!next[id].browser) next[id]={...next[id],browser:d.browsers[0]};
-          });
-          return next;
-        });
+        if (!selBrowser) setSelBrowser(d.browsers[0]);
       }
-    }catch{}
+    } catch {}
   };
-  React.useEffect(()=>{refresh();const t=setInterval(refresh,3000);return()=>clearInterval(t);},[]);
+  React.useEffect(()=>{ refresh(); const t=setInterval(refresh,3000); return()=>clearInterval(t); },[]);
 
-  const set=(id,key,val)=>setPlatSet(p=>({...p,[id]:{...p[id],[key]:val}}));
-  const flash=(txt,ms=6000)=>{setMsg(txt);setTimeout(()=>setMsg(''),ms);};
-
-  const launchFor=async(plat)=>{
-    const s=platSet[plat];
-    if(!s.browser){flash('✗ Select a browser first');return;}
-    setBusy(true);setMsg('');setLoginPlat(plat);setLoginStep('idle');
-    try{
-      if(status.open) await API('/api/browser/close',{method:'POST'});
-      const r=await API('/api/browser/launch',{method:'POST',body:JSON.stringify({
-        browserName:s.browser,
-        headless:s.headless,
-        platform:s.headless?'':plat,
+  const launch = async () => {
+    setBusy(true); setMsg('');
+    try {
+      if (open) await API('/api/browser/close',{method:'POST'});
+      const r = await API('/api/browser/launch',{method:'POST',body:JSON.stringify({
+        browserName: selBrowser,
+        headless,
+        platform: '',
       })});
-      const d=await r.json();
-      if(!d.ok) throw new Error(d.error);
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
       await refresh();
-      if(!s.headless){
-        setLoginStep('open');
-        await API('/api/browser/goto-login',{method:'POST',body:JSON.stringify({platform:plat})});
-        setLoginStep('waiting');
-        flash(`Browser open on ${PLATFORMS.find(p=>p.id===plat)?.label} login — log in then click Done`,120000);
-      } else {
-        flash(`✓ Headless browser ready for ${PLATFORMS.find(p=>p.id===plat)?.label}`);
-        setLoginPlat('');
-      }
-    }catch(e){flash('✗ '+e.message);setLoginStep('idle');setLoginPlat('');}
+      flash(headless ? '✓ Headless browser ready.' : '✓ Browser open — log into any platforms below, then run scrape.');
+      setLoginStep('idle'); setLoginPlat('');
+    } catch(e){ flash('✗ '+e.message); }
     setBusy(false);
   };
 
-  const confirmLogin=async()=>{
+  const close = async () => {
     setBusy(true);
-    try{
-      const d=await (await API('/api/browser/confirm-login',{method:'POST',body:JSON.stringify({platform:loginPlat})})).json();
-      if(d.loggedIn){setLoginStep('done');flash(`✓ ${PLATFORMS.find(p=>p.id===loginPlat)?.label} login saved — ready to scrape!`);}
-      else flash(`⚠ Not logged in yet (${d.url?.slice(0,50)}). Finish login then click Done again.`);
-    }catch(e){flash('✗ '+e.message);}
+    await API('/api/browser/close',{method:'POST'});
+    await refresh();
+    setLoginStep('idle'); setLoginPlat('');
     setBusy(false);
   };
 
-  const clearSession=async(plat)=>{
-    const d=await (await API('/api/browser/clear-profile',{method:'POST',body:JSON.stringify({platform:plat})})).json();
-    flash(d.ok?`✓ ${plat} session cleared`:'✗ '+d.error);
+  const goLogin = async (plat) => {
+    setBusy(true); setLoginPlat(plat); setLoginStep('navigated');
+    await API('/api/browser/goto-login',{method:'POST',body:JSON.stringify({platform:plat})});
+    flash('Browser navigated to '+PLAT_LOGINS.find(p=>p.id===plat)?.label+' login — complete login + captcha, then click ✓ Done.', 120000);
+    setBusy(false);
   };
 
-  const close=async()=>{setBusy(true);await API('/api/browser/close',{method:'POST'});setLoginStep('idle');setLoginPlat('');await refresh();setBusy(false);};
+  const confirmLogin = async () => {
+    setBusy(true);
+    const d = await (await API('/api/browser/confirm-login',{method:'POST',body:JSON.stringify({platform:loginPlat})})).json();
+    if (d.loggedIn) {
+      flash('✓ '+PLAT_LOGINS.find(p=>p.id===loginPlat)?.label+' login confirmed. Session saved.');
+      setLoginStep('confirmed');
+    } else {
+      flash('⚠ Not logged in yet ('+d.url?.slice(0,50)+'). Finish login then click Done again.');
+    }
+    setBusy(false);
+  };
 
-  const selStyle={fontSize:11,padding:'4px 6px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',width:'100%'};
+  const clearSession = async (plat) => {
+    const d = await (await API('/api/browser/clear-profile',{method:'POST',body:JSON.stringify({platform:plat})})).json();
+    flash(d.ok ? '✓ '+plat+' session cleared' : '✗ '+d.error);
+  };
 
-  return(
+  const selStyle = {fontSize:11,padding:'3px 6px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',width:'100%'};
+
+  return (
     <div className="sb-section">
       <div className="sb-label">Browser</div>
 
+      {/* Status row */}
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-        <div className={`dot ${status.open?'dot-green':'dot-red'}`}/>
-        <span style={{color:status.open?'var(--green)':'var(--red)',fontWeight:600,fontSize:12}}>
-          {status.open?(status.headless?'Headless running':'Visible browser open'):'Not running'}
+        <div className={`dot ${open?'dot-green':'dot-red'}`}/>
+        <span style={{fontWeight:600,fontSize:12,color:open?'var(--green)':'var(--red)'}}>
+          {open?(headless?'Headless running':'Visible browser open'):'Not running'}
         </span>
-        {status.open&&<button onClick={close} disabled={busy} style={{marginLeft:'auto',background:'transparent',border:'1px solid var(--border)',borderRadius:4,color:'var(--text3)',fontSize:11,padding:'2px 8px',cursor:'pointer'}}>
-          {busy?<span className="spinner"/>:'✕ Close'}
-        </button>}
+        {open&&<button onClick={close} disabled={busy} style={{marginLeft:'auto',background:'transparent',border:'1px solid var(--border)',borderRadius:4,color:'var(--text3)',fontSize:11,padding:'2px 8px',cursor:'pointer'}}>✕ Close</button>}
       </div>
 
-      {loginStep==='waiting'&&<div style={{background:'#0d1a0d',border:'1px solid #2a5a2a',borderRadius:6,padding:'10px 12px',marginBottom:10}}>
-        <div style={{color:'var(--green)',fontWeight:700,marginBottom:6}}>✦ {PLATFORMS.find(p=>p.id===loginPlat)?.label} login open</div>
-        <div style={{fontSize:11,color:'var(--text2)',marginBottom:8,lineHeight:1.5}}>Log in · complete captcha/2FA · click Done.</div>
-        <button className="btn btn-primary btn-full" onClick={confirmLogin} disabled={busy}>
-          {busy?<><span className="spinner"/>&nbsp;Checking…</>:"✓ Done — I'm logged in"}
+      {/* Launch controls */}
+      {!open&&<>
+        <div style={{marginBottom:6}}>
+          <select value={selBrowser} onChange={e=>setSelBrowser(e.target.value)} style={selStyle}>
+            {browsers.map(b=><option key={b}>{b}</option>)}
+          </select>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+          <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:11,padding:'5px 8px',border:'1px solid var(--border)',borderRadius:4,background:headless?'var(--blue)':'var(--bg3)',color:headless?'#fff':'var(--text)'}}>
+            <input type="radio" style={{display:'none'}} checked={headless} onChange={()=>setHeadless(true)}/>
+            ⚡ Headless
+          </label>
+          <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:11,padding:'5px 8px',border:'1px solid var(--border)',borderRadius:4,background:!headless?'var(--blue)':'var(--bg3)',color:!headless?'#fff':'var(--text)'}}>
+            <input type="radio" style={{display:'none'}} checked={!headless} onChange={()=>setHeadless(false)}/>
+            👁 Visible
+          </label>
+        </div>
+        <button className="btn btn-primary btn-full" onClick={launch} disabled={busy||!selBrowser}>
+          {busy?<><span className="spinner"/>&nbsp;Launching…</>:'🚀 Launch Browser'}
         </button>
-      </div>}
+      </>}
 
-      {loginStep==='done'&&<div style={{background:'#0d1a0d',border:'1px solid #2a5a2a',borderRadius:6,padding:'8px 12px',marginBottom:10,fontSize:11,color:'var(--green)'}}>
-        ✓ {PLATFORMS.find(p=>p.id===loginPlat)?.label} session saved.
-      </div>}
-
-      {browsers.length===0&&<div style={{color:'var(--red)',fontSize:11,marginBottom:8}}>No browser found — install Chrome or Edge.</div>}
-
-      <div style={{display:'flex',flexDirection:'column',gap:6}}>
-        {PLATFORMS.map(plat=>{
-          const s=platSet[plat.id];
-          return(
-            <div key={plat.id} style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-                <span style={{color:plat.color,fontWeight:700,fontSize:12}}>{plat.icon} {plat.label}</span>
-                <button title="Clear saved session" onClick={()=>clearSession(plat.id)} style={{marginLeft:'auto',background:'transparent',border:'none',color:'var(--text3)',fontSize:12,cursor:'pointer',lineHeight:1}}>🗑</button>
-              </div>
-              <div style={{marginBottom:5}}>
-                <select value={s.browser} onChange={e=>set(plat.id,'browser',e.target.value)} style={selStyle}>
-                  {browsers.length===0&&<option>No browsers found</option>}
-                  {browsers.map(b=><option key={b}>{b}</option>)}
-                </select>
-              </div>
-              <div style={{marginBottom:6}}>
-                <select value={s.headless?'headless':'login'} onChange={e=>set(plat.id,'headless',e.target.value==='headless')} style={selStyle}>
-                  <option value="headless">Headless (fast)</option>
-                  <option value="login">Visible + Login</option>
-                </select>
-              </div>
-              <button className="btn btn-primary btn-full" style={{fontSize:11,padding:'5px'}} onClick={()=>launchFor(plat.id)} disabled={busy||!s.browser||loginStep==='waiting'}>
-                {busy&&loginPlat===plat.id?<><span className="spinner"/>&nbsp;Launching…</>:s.headless?`🚀 Launch for ${plat.label}`:`🔓 Open & Login ${plat.label}`}
+      {/* Login shortcuts — only shown when visible browser is open */}
+      {open&&!headless&&<>
+        <div style={{fontSize:10,color:'var(--text3)',letterSpacing:'.08em',margin:'10px 0 6px',fontWeight:700}}>
+          LOG INTO PLATFORMS (optional)
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:4}}>
+          {PLAT_LOGINS.map(p=>(
+            <div key={p.id} style={{display:'flex',gap:4,alignItems:'center'}}>
+              <button onClick={()=>goLogin(p.id)} disabled={busy}
+                style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
+                  color:p.color,fontSize:11,padding:'4px 8px',cursor:'pointer',textAlign:'left',fontWeight:600}}>
+                {p.icon} {p.label}
+              </button>
+              <button title="Clear saved session" onClick={()=>clearSession(p.id)}
+                style={{background:'transparent',border:'1px solid var(--border)',borderRadius:4,color:'var(--text3)',fontSize:11,padding:'3px 7px',cursor:'pointer'}}>
+                🗑
               </button>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+        {loginStep==='navigated'&&<button className="btn btn-primary btn-full" style={{marginTop:8}} onClick={confirmLogin} disabled={busy}>
+          {busy?<><span className="spinner"/>&nbsp;Checking…</>:"✓ Done — I'm logged in"}
+        </button>}
+      </>}
 
       {msg&&<div style={{marginTop:8,fontSize:11,padding:'6px 10px',borderRadius:5,lineHeight:1.5,
         background:msg.startsWith('✓')?'#0d1a0d':msg.startsWith('✗')?'#1a0808':'#1a1400',
         color:msg.startsWith('✓')?'var(--green)':msg.startsWith('✗')?'var(--red)':'#d4a030',
-        border:`1px solid ${msg.startsWith('✓')?'#2a5a2a':msg.startsWith('✗')?'#5a1a1a':'#5a4a00'}`
+        border:'1px solid '+(msg.startsWith('✓')?'#2a5a2a':msg.startsWith('✗')?'#5a1a1a':'#5a4a00')
       }}>{msg}</div>}
     </div>
   );
-}
-
-// ── FileTextarea — textarea with file upload button ────────────────────────────
-function FileTextarea({ label, value, onChange, placeholder, minH = 72 }) {
-  const ref = React.useRef(null);
-
-  const readFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    e.target.value = ''; // allow re-selecting same file
-
-    if (file.name.toLowerCase().endsWith('.txt')) {
-      const text = await file.text();
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      onChange(lines.join('\n'));
-    } else if (file.name.toLowerCase().endsWith('.xlsx')) {
-      const buf = await file.arrayBuffer();
-      const wb  = window.XLSX.read(buf);
-      const ws  = wb.Sheets[wb.SheetNames[0]];
-      const rows= window.XLSX.utils.sheet_to_json(ws, { header:1 });
-      const lines = rows.map(r => String(r[0] ?? '').trim()).filter(Boolean);
-      onChange(lines.join('\n'));
-    }
-  };
-
-  const count = value ? value.split('\n').filter(Boolean).length : 0;
-
-  return (
-    <div className="field">
-      <div className="field-header">
-        <label>{label}{count > 0 && <span style={{color:'var(--green)',marginLeft:6}}>{count} item{count!==1?'s':''}</span>}</label>
-        <button className="btn-file" onClick={() => ref.current?.click()}>📂 .txt / .xlsx</button>
-        <input ref={ref} type="file" accept=".txt,.xlsx" style={{display:'none'}} onChange={readFile}/>
-      </div>
-      <textarea placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)}
-        style={{minHeight:minH}}/>
-    </div>
-  );
-}
-
-// ── Scrape Form ───────────────────────────────────────────────────────────────
-function useCollapse(key, defaultOpen=true){
-  const [open,setOpen]=useState(()=>{try{const v=sessionStorage.getItem('sc:'+key);return v===null?defaultOpen:v==='1';}catch{return defaultOpen;}});
-  const toggle=()=>setOpen(o=>{try{sessionStorage.setItem('sc:'+key,!o?'1':'0');}catch{}return !o;});
-  return [open,toggle];
 }
 
 function CollapseSection({id,label,children,defaultOpen=true}){
@@ -1129,31 +1085,21 @@ function CrossSearchForm({onJobStart}){
 
         try {
           const r = await API('/api/scrape', {method:'POST', body:JSON.stringify(payload)});
-          if (!r.ok) throw new Error('HTTP '+r.status+': '+(await r.text()).slice(0,80));
+          if (!r.ok) {
+            const txt = await r.text();
+            throw new Error(`HTTP ${r.status}: ${txt.slice(0,80)}`);
+          }
           const d = await r.json();
-          if (!d.jobId) throw new Error(d.error || 'No jobId returned');
-          onJobStart(d.jobId, p.id, modeId);
-          setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:'⏳ running…'}}));
-          await new Promise((resolve) => {
-            const es = new EventSource('/api/stream/'+d.jobId);
-            const t  = setTimeout(() => { es.close(); resolve(null); }, 600_000);
-            es.onmessage = ev => {
-              try {
-                const msg = JSON.parse(ev.data);
-                if (msg.type === 'end') {
-                  clearTimeout(t); es.close();
-                  const ok = msg.status !== 'error';
-                  setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:ok?'✓ done':'✗ '+(msg.error||'error')}}));
-                  if (ok) setCompletedJobs(prev=>({...prev,[p.id+'::'+modeId]:d.jobId}));
-                  resolve(null);
-                }
-              } catch {}
-            };
-            es.onerror = () => { clearTimeout(t); es.close(); resolve(null); };
-          });
+          if (d.jobId) {
+            onJobStart(d.jobId, p.id, modeId);
+            setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:'✓ '+d.jobId.slice(0,8)}}));
+          } else {
+            throw new Error(d.error || 'No jobId returned');
+          }
         } catch(e) {
           setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:'✗ '+String(e.message).slice(0,50)}}));
         }
+        await new Promise(r=>setTimeout(r,500));
       }
     }
     setRunning(false);
@@ -1267,18 +1213,6 @@ function CrossSearchForm({onJobStart}){
         <button className="btn btn-primary btn-full" onClick={run} disabled={running||!kw.trim()}>
           {running?<><span className="spinner"/>&nbsp;Cross-searching…</>:'✦ Run Cross-Search'}
         </button>
-        {Object.keys(completedJobs).length>0&&<>
-          <div style={{display:'flex',gap:6,alignItems:'center',marginTop:8}}>
-            <div style={{fontSize:10,color:'var(--text3)'}}>Push limit</div>
-            <select value={crossLimit} onChange={e=>setCrossLimit(Number(e.target.value))}
-              style={{fontSize:11,padding:'2px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',flex:1}}>
-              {[10,20,50,100].map(n=><option key={n} value={n}>{n} per platform</option>)}
-            </select>
-          </div>
-          <button className="btn btn-full" style={{marginTop:6,background:'#0d1a0d',border:'1px solid #2a5a2a',color:'var(--green)',fontSize:11}} onClick={pushAll}>
-            ✦ Push all to SIGINT Ticker ({Object.keys(completedJobs).length} job{Object.keys(completedJobs).length>1?'s':''})
-          </button>
-        </>}
 
         {Object.keys(completedJobs).length>0&&<>
           <div style={{display:'flex',gap:6,alignItems:'center',marginTop:10}}>

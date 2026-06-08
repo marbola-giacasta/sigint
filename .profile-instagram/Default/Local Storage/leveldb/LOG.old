@@ -1,3 +1,6 @@
-2026/06/08-11:40:13.537 6484 Reusing MANIFEST C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/MANIFEST-000001
-2026/06/08-11:40:13.545 6484 Recovering log #26
-2026/06/08-11:40:13.549 6484 Reusing old log C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/000026.log 
+2026/06/08-11:46:47.334 49d8 Reusing MANIFEST C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/MANIFEST-000001
+2026/06/08-11:46:47.341 49d8 Recovering log #26
+2026/06/08-11:46:47.345 49d8 Reusing old log C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/000026.log 
+2026/06/08-11:51:24.020 4724 Level-0 table #31: started
+2026/06/08-11:51:24.027 4724 Level-0 table #31: 25256 bytes OK
+2026/06/08-11:51:24.031 4724 Delete type=0 #26
