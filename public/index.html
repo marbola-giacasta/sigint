@@ -867,17 +867,6 @@ function ScrapeForm({onJobStart}){
             {concurrency===1?'Sequential (1 worker)':`${concurrency} parallel workers`}
           </div>
         </div>
-        <div className="field" style={{marginTop:8}}>
-          <div className="field-header">
-            <label>Parallel workers</label>
-            <span style={{fontSize:10,color:'var(--text3)'}}>1 – 10 simultaneous</span>
-          </div>
-          <input type="range" min="1" max="10" step="1" value={concurrency}
-            onChange={e=>setConcurrency(Number(e.target.value))}/>
-          <div className="range-label" style={{color:concurrency>1?'var(--green)':'var(--text2)'}}>
-            {concurrency===1?'Sequential — 1 worker at a time':`${concurrency} workers running in parallel`}
-          </div>
-        </div>
       </div>
       </div>
       </CollapseSection>
