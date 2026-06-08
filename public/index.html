@@ -50,7 +50,8 @@ select option{background:var(--bg3)}
 .pill-yt{color:#ff4444;border-color:#ff4444}.pill-yt.active{background:#ff4444;color:#fff}
 .pill-rd{color:#ff6314;border-color:#ff6314}.pill-rd.active{background:#ff6314;color:#fff}
 .pill-ig{color:#e1306c;border-color:#e1306c}.pill-ig.active{background:#e1306c;color:#fff}
-    .pill-x{color:#aaa;border-color:#aaa}.pill-x.active{background:#333;color:#fff;border-color:#555}
+    .pill-x{color:#aaa;border-color:#aaa}
+    .pill-li{color:#0077b5;border-color:#0077b5}.pill-x.active{background:#333;color:#fff;border-color:#555}
 .pill-x{color:#1d9bf0;border-color:#1d9bf0}.pill-x.active{background:#1d9bf0;color:#fff}
 .mode-list{display:flex;flex-direction:column;gap:3px}
 .mode-item{padding:6px 10px;border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--text2);border:1px solid transparent;transition:all .15s;display:flex;align-items:center;gap:8px}
@@ -153,6 +154,17 @@ tr:hover td{background:var(--bg3)}
     .mobile .log-panel { height:45vh; min-height:220px; overflow-y:auto; flex:none; }
     .mobile .log-text { word-break:break-word; white-space:pre-wrap; min-width:0; }
     .mobile .table-wrap { overflow-x:auto; }
+
+    /* ── Collapsible sidebar sections ─────────────────────────────────────── */
+    .sb-section { transition: padding .2s; }
+    .sb-label {
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sb-label::after { content: '▾'; font-size: 10px; opacity: .5; transition: transform .2s; }
+    .sb-label.collapsed::after { transform: rotate(-90deg); }
+    .sb-body { overflow: hidden; transition: max-height .25s ease; }
+    .sb-body.hidden { max-height: 0 !important; }
 
     </style>
 </head>
@@ -530,6 +542,10 @@ const PLATFORMS={
     {id:'user',label:'User tweets',icon:'👤',desc:'All tweets from a @handle'},
     {id:'replies',label:'Tweet replies',icon:'💬',desc:'All replies under a tweet'},
   ]},
+  linkedin:{label:'in LinkedIn',pill:'pill-li',modes:[
+    {id:'feed-search',label:'Search posts/feed',icon:'📰',desc:'Posts matching keyword'},
+    {id:'job-search', label:'Search jobs',      icon:'💼',desc:'Job listings by title/keyword'},
+  ]},
 };
 const YT_FILTERS=[{label:'Any time · Relevance',value:null},{label:'Any time · By date',value:'CAI%3D'},{label:'Any time · By views',value:'CAM%3D'},{label:'Today',value:'EgIIAg%3D%3D'},{label:'This week',value:'EgIIAw%3D%3D'},{label:'This month',value:'EgIIBA%3D%3D'},{label:'This year',value:'EgIIBQ%3D%3D'}];
 const CH_SORTS=[{label:'Default (newest)',value:null},{label:'Most popular',value:'EgZ2aWRlb3MQAg%3D%3D'},{label:'Oldest first',value:'EgZ2aWRlb3MQCg%3D%3D'}];
@@ -544,6 +560,7 @@ function BrowserPanel(){
     {id:'reddit',    label:'Reddit',    icon:'◉', color:'#ff6314'},
     {id:'instagram', label:'Instagram', icon:'◈', color:'#c13584'},
     {id:'x',         label:'X/Twitter', icon:'✦', color:'#8888ff'},
+    {id:'linkedin',   label:'LinkedIn',  icon:'in', color:'#0077b5'},
   ];
 
   const [browsers,  setBrowsers]  = React.useState([]);
@@ -553,7 +570,7 @@ function BrowserPanel(){
   const [loginPlat, setLoginPlat] = React.useState('');
   const [loginStep, setLoginStep] = React.useState('idle');
   const [platSet,   setPlatSet]   = React.useState(
-    ()=>Object.fromEntries(['youtube','reddit','instagram','x'].map(id=>[id,{browser:'',headless:true}]))
+    ()=>Object.fromEntries(['youtube','reddit','instagram','x','linkedin'].map(id=>[id,{browser:'',headless:true}]))
   );
 
   const refresh = async()=>{
@@ -728,6 +745,24 @@ function FileTextarea({ label, value, onChange, placeholder, minH = 72 }) {
 }
 
 // ── Scrape Form ───────────────────────────────────────────────────────────────
+function useCollapse(key, defaultOpen=true){
+  const [open,setOpen]=useState(()=>{try{const v=sessionStorage.getItem('sc:'+key);return v===null?defaultOpen:v==='1';}catch{return defaultOpen;}});
+  const toggle=()=>setOpen(o=>{try{sessionStorage.setItem('sc:'+key,!o?'1':'0');}catch{}return !o;});
+  return [open,toggle];
+}
+
+function CollapseSection({id,label,children,defaultOpen=true}){
+  const [open,toggle]=useCollapse(id,defaultOpen);
+  return(
+    <div className="sb-section">
+      <div className={`sb-label${open?'':' collapsed'}`} onClick={toggle}>{label}</div>
+      <div className="sb-body" style={{maxHeight:open?'2000px':'0'}}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ScrapeForm({onJobStart}){
   const isMobile=useMobile();
   const [plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
@@ -743,13 +778,14 @@ function ScrapeForm({onJobStart}){
       inputs:{keywords:lines(inp.keywords),urls:lines(inp.urls),usernames:lines(inp.usernames),
               subs:lines(inp.subs),handles:lines(inp.handles),
               sort:inp.sort??'relevance',time:inp.time??'all',
+              location:inp.location??'',
               wantLogin:inp.wantLogin??false,filter}};
     const r=await API('/api/scrape',{method:'POST',body:JSON.stringify(payload)});
     const {jobId}=await r.json();
     onJobStart(jobId,plat,mode);setBusy(false);
   };
   const isYT=plat==='youtube';const isRD=plat==='reddit';const isX=plat==='x';
-  const needKw=['search','channel-search','search-posts','search-subs'].includes(mode)&&!isX||plat==='instagram'&&mode==='search';
+  const needKw=['search','channel-search','search-posts','search-subs'].includes(mode)&&!isX||plat==='instagram'&&mode==='search'||plat==='linkedin';
   const needXKw=isX&&mode==='search';
   const needUrl=['comments','post-comments'].includes(mode)||(isX&&mode==='replies');
   const needCh=mode==='channel-videos';const needSub=mode==='subreddit';
@@ -1016,8 +1052,8 @@ function CrossSearchForm({onJobStart}){
       ]},
     { id:'reddit', label:'Reddit', icon:'◉', color:'#ff6314',
       modes:[
-        {id:'search',           label:'Search posts',        inputs:['keywords']},
-        {id:'search-subs',      label:'Search subreddits',   inputs:['keywords']},
+        {id:'search-posts', label:'Search posts'},
+        {id:'search-subs',  label:'Search subreddits'},
         {id:'post-comments',    label:'Post comments',       inputs:['urls'], note:'Enter post URLs'},
       ]},
     { id:'instagram', label:'Instagram', icon:'◈', color:'#c13584',
@@ -1027,8 +1063,10 @@ function CrossSearchForm({onJobStart}){
       ]},
     { id:'x', label:'X/Twitter', icon:'✦', color:'#8888ff',
       modes:[
-        {id:'search',           label:'Search tweets',       inputs:['keywords']},
+        {id:'search', label:'Search tweets'},
       ]},
+    { id:'linkedin', label:'LinkedIn', icon:'in', color:'#0077b5',
+      modes:[{id:'feed-search',label:'Search posts/feed'},{id:'job-search',label:'Search jobs'}]},
   ];
 
   const [kw,       setKw]      = useState('');
@@ -1041,8 +1079,10 @@ function CrossSearchForm({onJobStart}){
   const [sort,     setSort]    = useState('relevance');
   const [time,     setTime]    = useState('all');
   const [workers,  setWorkers] = useState(1);
-  const [running,  setRunning] = useState(false);
-  const [status,   setStatus]  = useState({});
+  const [running,       setRunning]      = useState(false);
+  const [status,        setStatus]       = useState({});
+  const [completedJobs, setCompletedJobs] = useState({});
+  const [crossLimit,    setCrossLimit]    = useState(20);
 
   const togglePlat = id => setSel(p=>({...p,[id]:!p[id]}));
   const toggleMode = (platId, modeId) => setSelModes(prev => {
@@ -1109,6 +1149,16 @@ function CrossSearchForm({onJobStart}){
     setRunning(false);
   };
 
+  const pushAll = async () => {
+    const jids = Object.values(completedJobs);
+    if (!jids.length) { alert('No completed jobs to push.'); return; }
+    let pushed = 0;
+    for (const jid of jids) {
+      try { const r=await API('/api/ticker/push',{method:'POST',body:JSON.stringify({jobId:jid,limit:crossLimit})}); const d=await r.json(); if(d.ok) pushed++; } catch {}
+    }
+    setMsg(prev=>'✓ Pushed '+pushed+'/'+jids.length+' job(s) to SIGINT ticker.');
+  };
+
   return (
     <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto'}}>
       <div className="sb-section">
@@ -1121,8 +1171,7 @@ function CrossSearchForm({onJobStart}){
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Keywords (one per line)</div>
           <textarea value={kw} onChange={e=>setKw(e.target.value)} rows={3}
-            placeholder={"bitcoin
-ethereum"}
+            placeholder={"bitcoin\nethereum"}
             style={{width:'100%',boxSizing:'border-box',padding:'7px 10px',background:'var(--bg2)',
               border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,
               outline:'none',resize:'vertical',fontFamily:'inherit'}}/>
@@ -1208,6 +1257,19 @@ ethereum"}
         <button className="btn btn-primary btn-full" onClick={run} disabled={running||!kw.trim()}>
           {running?<><span className="spinner"/>&nbsp;Cross-searching…</>:'✦ Run Cross-Search'}
         </button>
+
+        {Object.keys(completedJobs).length>0&&<>
+          <div style={{display:'flex',gap:6,alignItems:'center',marginTop:10}}>
+            <div style={{fontSize:10,color:'var(--text3)'}}>Push limit</div>
+            <select value={crossLimit} onChange={e=>setCrossLimit(Number(e.target.value))}
+              style={{fontSize:11,padding:'2px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',flex:1}}>
+              {[10,20,50,100].map(n=><option key={n} value={n}>{n} per platform</option>)}
+            </select>
+          </div>
+          <button className="btn btn-full" style={{marginTop:6,background:'#0d1a0d',border:'1px solid #2a5a2a',color:'var(--green)',fontSize:11}} onClick={pushAll}>
+            ✦ Push all to SIGINT Ticker ({Object.keys(completedJobs).length} job{Object.keys(completedJobs).length>1?'s':''})
+          </button>
+        </>}
       </div>
     </div>
   );

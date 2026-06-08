@@ -401,7 +401,7 @@ body {
 
 <div id="masthead">
   <span id="masthead-title">SIGINT·FEED</span>
-  <span id="masthead-sub">Open Source Collection · Automated Aggregation</span>
+  <span id="masthead-sub">AGGREGATOR</span>
   <span id="masthead-clock" id="clock">——</span>
 </div>
 
@@ -516,6 +516,13 @@ function extractCols(item, platform, mode) {
     url     = d.url
       || (d.shortcode ? 'https://www.instagram.com/p/' + d.shortcode + '/' : '')
       || (handle ? 'https://www.instagram.com/' + handle + '/' : '');
+  } else if (platform === 'linkedin') {
+    author  = d.author || '—';
+    content = d.text || d.title || '';  // feed posts use 'text', jobs use 'title'
+    ts      = d.timestamp || d.posted || '';
+    url     = d.url || d.authorUrl || '';
+    // For job listings: show company + location as content
+    if (d.company) content = (d.title || '') + (d.company ? ' @ ' + d.company : '') + (d.location ? ' · ' + d.location : '');
   } else if (platform === 'x') {
     // X scraper returns: author=screen_name, authorName=display name, text, tweetUrl, timestamp
     const handle = d.author || d.username || '';
@@ -665,6 +672,26 @@ function buildExpandPanel(item, platform, mode) {
     if (d.imageUrl)      fields.push({ label: 'Thumbnail', value: d.imageUrl, image: true });
     const postUrl = d.url || (d.shortcode ? 'https://www.instagram.com/p/' + d.shortcode + '/' : '');
     if (postUrl)         fields.push({ label: 'Post URL',  value: postUrl, link: postUrl });
+  } else if (platform === 'linkedin') {
+    author  = d.author || '—';
+    content = d.text || d.title || '';  // feed posts use 'text', jobs use 'title'
+    ts      = d.timestamp || d.posted || '';
+    url     = d.url || d.authorUrl || '';
+    // For job listings: show company + location as content
+    if (d.company) content = (d.title || '') + (d.company ? ' @ ' + d.company : '') + (d.location ? ' · ' + d.location : '');
+  } else if (platform === 'linkedin') {
+    if (d.author)   fields.push({ label: 'Author',   value: String(d.author), link: d.authorUrl||'' });
+    if (d.headline) fields.push({ label: 'Headline', value: String(d.headline) });
+    if (d.company)  fields.push({ label: 'Company',  value: String(d.company) });
+    if (d.location) fields.push({ label: 'Location', value: String(d.location) });
+    if (d.jobType)  fields.push({ label: 'Type',     value: String(d.jobType) });
+    if (d.salary)   fields.push({ label: 'Salary',   value: String(d.salary) });
+    if (d.likes)    fields.push({ label: 'Reactions',value: String(d.likes) });
+    if (d.comments) fields.push({ label: 'Comments', value: String(d.comments) });
+    const liText = d.text || '';
+    if (liText) fields.push({ label: 'Content', value: liText.slice(0,400), marquee: true });
+    if (d.url)  fields.push({ label: 'URL', value: d.url, link: d.url });
+    if (d.easyApply) fields.push({ label: 'Apply', value: '⚡ LinkedIn Easy Apply available' });
   } else if (platform === 'x') {
     const handle = d.author || d.username || '';
     if (d.authorName)    fields.push({ label: 'Name',     value: String(d.authorName) });
@@ -781,8 +808,8 @@ function buildSection(platform, mode, items, isNew) {
   };
   colHdr.innerHTML = `
     <span style="cursor:pointer" onclick="setSort('source-asc')">SOURCE · AUTHOR${sortArrow.source}</span>
-    <span style="cursor:pointer" onclick="setSort('content-asc')">CONTENT${sortArrow.content}</span>
-    <span style="cursor:pointer;text-align:right" onclick="toggleDateSort()">DATE · TIME${sortArrow.date}</span>
+    <span style="cursor:pointer;text-align:center;display:block" onclick="setSort('content-asc')">CONTENT${sortArrow.content}</span>
+    <span style="cursor:pointer;text-align:right;display:block" onclick="toggleDateSort()">DATE · TIME${sortArrow.date}</span>
   `;
   wrap.appendChild(colHdr);
 

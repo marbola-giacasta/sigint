@@ -6,3 +6,8 @@ dist/
 instagram_images/
 .env
 ticker-store.json
+.profile-*/
+.x-profile/
+dist/
+ticker-store.json
+instagram_images/
