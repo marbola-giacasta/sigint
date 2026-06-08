@@ -829,7 +829,6 @@ function ScrapeForm({onJobStart}){
       </CollapseSection>
       <CollapseSection id="sf-params" label="Parameters" defaultOpen={true}>
         <div style={{flex:1,overflowY:'auto'}}>
-        <div className="sb-label">Parameters</div>
         {(needKw||needXKw)&&<FileTextarea label="Keywords (one per line)" placeholder={"bitcoin\nethereum"} value={inp.keywords||''} onChange={v=>set('keywords',v)}/>}
         {needHandle&&<FileTextarea label="@handle(s) (one per line)" placeholder={"@elonmusk\n@NASA"} value={inp.handles||''} onChange={v=>set('handles',v)}/>}
         {needUrl&&<FileTextarea label="URLs (one per line)" placeholder={isX?'https://x.com/user/status/...':'https://www.reddit.com/r/.../comments/...'} value={inp.urls||''} onChange={v=>set('urls',v)}/>}
@@ -879,6 +878,10 @@ function ScrapeForm({onJobStart}){
             {concurrency===1?'Sequential — 1 worker at a time':`${concurrency} workers running in parallel`}
           </div>
         </div>
+      </div>
+      </div>
+      </CollapseSection>
+      <div className="sb-section">
         <button className="btn btn-primary btn-full" style={{marginTop:8}} onClick={run} disabled={busy}>
           {busy?<><span className="spinner"/>&nbsp;Running…</>:'▶  Run Scrape'}
         </button>
