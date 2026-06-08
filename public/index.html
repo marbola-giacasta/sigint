@@ -162,22 +162,9 @@ tr:hover td{background:var(--bg3)}
       display: flex; align-items: center; justify-content: space-between;
     }
     .sb-label::after { content: '▾'; font-size: 10px; opacity: .5; transition: transform .2s; }
-    .sb-label.sb-collapsed::after { transform: rotate(-90deg); }
+    .sb-label.collapsed::after { transform: rotate(-90deg); }
     .sb-body { overflow: hidden; transition: max-height .25s ease; }
-    .sb-body.sb-hidden { max-height: 0 !important; }
-
-    /* ── Collapsible sidebar sections ─────────────────────────────────────── */
-    .sb-label {
-      cursor: pointer; user-select: none;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .sb-label::after {
-      content: '▾'; font-size: 10px; opacity: .5; transition: transform .2s;
-      margin-left: 6px; flex-shrink: 0;
-    }
-    .sb-label.sb-collapsed::after { transform: rotate(-90deg); }
-    .sb-body { overflow: hidden; transition: max-height .2s ease; }
-    .sb-body.sb-hidden { max-height: 0 !important; }
+    .sb-body.hidden { max-height: 0 !important; }
 
     </style>
 </head>
@@ -679,9 +666,8 @@ function BrowserPanel(){
         ✓ {PLATFORMS.find(p=>p.id===loginPlat)?.label} session saved.
       </div>}
 
-      <details open>
-      <summary style={{cursor:'pointer',fontSize:10,color:'var(--text3)',letterSpacing:'.1em',fontWeight:700,listStyle:'none',userSelect:'none',paddingBottom:6,outline:'none'}}>▾ PLATFORM LOGIN SETTINGS</summary>
       {browsers.length===0&&<div style={{color:'var(--red)',fontSize:11,marginBottom:8}}>No browser found — install Chrome or Edge.</div>}
+
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
         {PLATFORMS.map(plat=>{
           const s=platSet[plat.id];
@@ -710,7 +696,7 @@ function BrowserPanel(){
           );
         })}
       </div>
-      </details>
+
       {msg&&<div style={{marginTop:8,fontSize:11,padding:'6px 10px',borderRadius:5,lineHeight:1.5,
         background:msg.startsWith('✓')?'#0d1a0d':msg.startsWith('✗')?'#1a0808':'#1a1400',
         color:msg.startsWith('✓')?'var(--green)':msg.startsWith('✗')?'var(--red)':'#d4a030',
@@ -770,7 +756,7 @@ function CollapseSection({id,label,children,defaultOpen=true}){
   return(
     <div className="sb-section">
       <div className={`sb-label${open?'':' collapsed'}`} onClick={toggle}>{label}</div>
-      <div className={`sb-body${open?'':'sb-hidden'}`} style={{maxHeight:open?'2000px':'0'}}>
+      <div className="sb-body" style={{maxHeight:open?'2000px':'0'}}>
         {children}
       </div>
     </div>
@@ -806,7 +792,8 @@ function ScrapeForm({onJobStart}){
   const needUn=mode==='profile';const needHandle=isX&&mode==='user';
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <CollapseSection id="sf-platform" label="Platform" defaultOpen={true}>
+      <div className="sb-section">
+        <div className="sb-label">Platform</div>
         <div className="platform-pills">
           {Object.entries(PLATFORMS).map(([id,cfg])=>(
             <div key={id} className={`pill ${cfg.pill} ${plat===id?'active':''}`}
@@ -815,8 +802,9 @@ function ScrapeForm({onJobStart}){
             </div>
           ))}
         </div>
-      </CollapseSection>
-      <CollapseSection id="sf-mode" label="Mode" defaultOpen={true}>
+      </div>
+      <div className="sb-section">
+        <div className="sb-label">Mode</div>
         <div className="mode-list">
           {modes.map(m=>(
             <div key={m.id} className={`mode-item ${mode===m.id?'active':''}`}
@@ -826,8 +814,9 @@ function ScrapeForm({onJobStart}){
             </div>
           ))}
         </div>
-      </CollapseSection>
-      <CollapseSection id="sf-params" label="Parameters" defaultOpen={true}>
+      </div>
+      <div className="sb-section" style={{flex:1,overflowY:'auto'}}>
+        <div className="sb-label">Parameters</div>
         {(needKw||needXKw)&&<FileTextarea label="Keywords (one per line)" placeholder={"bitcoin\nethereum"} value={inp.keywords||''} onChange={v=>set('keywords',v)}/>}
         {needHandle&&<FileTextarea label="@handle(s) (one per line)" placeholder={"@elonmusk\n@NASA"} value={inp.handles||''} onChange={v=>set('handles',v)}/>}
         {needUrl&&<FileTextarea label="URLs (one per line)" placeholder={isX?'https://x.com/user/status/...':'https://www.reddit.com/r/.../comments/...'} value={inp.urls||''} onChange={v=>set('urls',v)}/>}
@@ -852,7 +841,7 @@ function ScrapeForm({onJobStart}){
           <label htmlFor="rdlogin" style={{margin:0,cursor:'pointer'}}>Log in to Reddit first</label>
         </div>}
 
-        <hr className="divider"/>
+        <div className="divider"/>
         <div className="field"><label>Collection limit</label>
           <select value={limit.mode} onChange={e=>setLimit(p=>({...p,mode:e.target.value}))}>
             <option value="all">All available</option><option value="specific">Specific number</option><option value="last5">First 25/50</option>
@@ -866,8 +855,17 @@ function ScrapeForm({onJobStart}){
             {concurrency===1?'Sequential (1 worker)':`${concurrency} parallel workers`}
           </div>
         </div>
-      </CollapseSection>
-      <div className="sb-section">
+        <div className="field" style={{marginTop:8}}>
+          <div className="field-header">
+            <label>Parallel workers</label>
+            <span style={{fontSize:10,color:'var(--text3)'}}>1 – 10 simultaneous</span>
+          </div>
+          <input type="range" min="1" max="10" step="1" value={concurrency}
+            onChange={e=>setConcurrency(Number(e.target.value))}/>
+          <div className="range-label" style={{color:concurrency>1?'var(--green)':'var(--text2)'}}>
+            {concurrency===1?'Sequential — 1 worker at a time':`${concurrency} workers running in parallel`}
+          </div>
+        </div>
         <button className="btn btn-primary btn-full" style={{marginTop:8}} onClick={run} disabled={busy}>
           {busy?<><span className="spinner"/>&nbsp;Running…</>:'▶  Run Scrape'}
         </button>
@@ -1130,36 +1128,28 @@ function CrossSearchForm({onJobStart}){
         };
 
         try {
-          // 1. Dispatch the job
           const r = await API('/api/scrape', {method:'POST', body:JSON.stringify(payload)});
-          if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0,80)}`);
+          if (!r.ok) throw new Error('HTTP '+r.status+': '+(await r.text()).slice(0,80));
           const d = await r.json();
           if (!d.jobId) throw new Error(d.error || 'No jobId returned');
-
-          // 2. Show as running and register with parent (for live log tab)
           onJobStart(d.jobId, p.id, modeId);
           setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:'⏳ running…'}}));
-
-          // 3. Wait for job to complete via SSE stream
           await new Promise((resolve) => {
             const es = new EventSource('/api/stream/'+d.jobId);
-            const timeout = setTimeout(() => { es.close(); resolve(null); }, 600_000);
+            const t  = setTimeout(() => { es.close(); resolve(null); }, 600_000);
             es.onmessage = ev => {
               try {
                 const msg = JSON.parse(ev.data);
                 if (msg.type === 'end') {
-                  clearTimeout(timeout); es.close();
+                  clearTimeout(t); es.close();
                   const ok = msg.status !== 'error';
                   setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:ok?'✓ done':'✗ '+(msg.error||'error')}}));
-                  if (ok) {
-                    // Store jobId so pushAll can push it
-                    setCompletedJobs(prev=>({...prev,[p.id+'::'+modeId]: d.jobId}));
-                  }
+                  if (ok) setCompletedJobs(prev=>({...prev,[p.id+'::'+modeId]:d.jobId}));
                   resolve(null);
                 }
               } catch {}
             };
-            es.onerror = () => { clearTimeout(timeout); es.close(); resolve(null); };
+            es.onerror = () => { clearTimeout(t); es.close(); resolve(null); };
           });
         } catch(e) {
           setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:'✗ '+String(e.message).slice(0,50)}}));
@@ -1234,8 +1224,7 @@ function CrossSearchForm({onJobStart}){
         </div>
 
         {/* Per-platform cards */}
-        <details open style={{marginTop:4}}>
-        <summary style={{cursor:'pointer',fontSize:10,color:'var(--text3)',letterSpacing:'.1em',fontWeight:700,listStyle:'none',display:'flex',alignItems:'center',gap:4,marginBottom:6}}><span style={{opacity:.5}}>▾</span> PLATFORM BROWSERS</summary>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:6,letterSpacing:'.08em'}}>PLATFORMS</div>
         <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:14}}>
           {PLATS.map(p=>{
             const active = sel[p.id];
@@ -1278,6 +1267,18 @@ function CrossSearchForm({onJobStart}){
         <button className="btn btn-primary btn-full" onClick={run} disabled={running||!kw.trim()}>
           {running?<><span className="spinner"/>&nbsp;Cross-searching…</>:'✦ Run Cross-Search'}
         </button>
+        {Object.keys(completedJobs).length>0&&<>
+          <div style={{display:'flex',gap:6,alignItems:'center',marginTop:8}}>
+            <div style={{fontSize:10,color:'var(--text3)'}}>Push limit</div>
+            <select value={crossLimit} onChange={e=>setCrossLimit(Number(e.target.value))}
+              style={{fontSize:11,padding:'2px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',flex:1}}>
+              {[10,20,50,100].map(n=><option key={n} value={n}>{n} per platform</option>)}
+            </select>
+          </div>
+          <button className="btn btn-full" style={{marginTop:6,background:'#0d1a0d',border:'1px solid #2a5a2a',color:'var(--green)',fontSize:11}} onClick={pushAll}>
+            ✦ Push all to SIGINT Ticker ({Object.keys(completedJobs).length} job{Object.keys(completedJobs).length>1?'s':''})
+          </button>
+        </>}
 
         {Object.keys(completedJobs).length>0&&<>
           <div style={{display:'flex',gap:6,alignItems:'center',marginTop:10}}>
