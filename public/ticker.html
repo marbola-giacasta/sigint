@@ -501,15 +501,28 @@ function extractCols(item, platform, mode) {
       url     = d.url || '';
     }
   } else if (platform === 'instagram') {
-    author  = '@' + (d.username || d.author || '—');
-    content = d.description || d.caption || d.text || '';
-    ts      = d.timestamp ? d.timestamp.slice(0,10) : '';
-    url     = d.shortcode ? `https://www.instagram.com/p/${d.shortcode}/` : '';
+    const handle = d.author || d.username || d.authorFullName || '';
+    author  = handle ? '@' + handle : '—';
+    // caption field from grid scraper (alt text), description from profile scraper
+    content = d.caption || d.description || d.text
+      || (d.likes ? `♥ ${d.likes}` + (d.commentsCount ? `  💬 ${d.commentsCount}` : '') : '')
+      || (d.shortcode ? `[Post]` : '');
+    ts      = d.timestamp ? String(d.timestamp).slice(0,10) : '';
+    url     = d.url
+      || (d.shortcode ? `https://www.instagram.com/p/${d.shortcode}/` : '')
+      || (handle ? `https://www.instagram.com/${handle}/` : '');
   } else if (platform === 'x') {
-    author  = '@' + (d.author || d.username || '—');
+    // X scraper returns: author=screen_name, authorName=display name, text, tweetUrl, timestamp
+    const handle = d.author || d.username || '';
+    const name   = d.authorName || '';
+    author  = handle ? '@' + handle + (name ? ' · ' + name.slice(0,15) : '') : (name || '—');
     content = d.text || d.content || '';
-    ts      = d.timestamp ? d.timestamp.slice(0,10) : '';
-    url     = d.tweetUrl || d.url || '';
+    ts      = d.timestamp
+      ? String(d.timestamp).slice(0,10)
+      : (d.createdAt ? String(d.createdAt).slice(0,10) : '');
+    url     = d.tweetUrl
+      || (handle && d.tweetId ? `https://x.com/${handle}/status/${d.tweetId}` : '')
+      || d.url || '';
   }
   return {
     author:  String(author).slice(0, 40),
@@ -597,17 +610,30 @@ function buildExpandPanel(item, platform, mode) {
     if (d.author)        fields.push({ label: 'Author',   value: 'u/' + d.author });
     if (d.permalink)     fields.push({ label: 'URL',      value: d.permalink, link: true });
   } else if (platform === 'instagram') {
-    if (d.likes)         fields.push({ label: 'Likes',       value: String(d.likes) });
-    if (d.commentsCount) fields.push({ label: 'Comments',    value: String(d.commentsCount) });
-    if (d.timestamp)     fields.push({ label: 'Posted',      value: String(d.timestamp).slice(0,10) });
-    if (d.description||d.caption) fields.push({ label: 'Caption', value: String(d.description||d.caption).slice(0,300), marquee: true });
-    if (d.followers)     fields.push({ label: 'Followers',   value: String(d.followers) });
+    const handle = d.author || d.username || '';
+    if (handle)          fields.push({ label: 'Author',   value: '@' + handle, link: handle ? 'https://www.instagram.com/' + handle + '/' : '' });
+    if (d.followers)     fields.push({ label: 'Followers', value: String(d.followers) });
+    if (d.likes)         fields.push({ label: 'Likes',     value: String(d.likes) });
+    if (d.commentsCount) fields.push({ label: 'Comments',  value: String(d.commentsCount) });
+    if (d.timestamp)     fields.push({ label: 'Posted',    value: String(d.timestamp).slice(0,10) });
+    const cap = d.caption || d.description || '';
+    if (cap)             fields.push({ label: 'Caption',   value: cap.slice(0,400), marquee: true });
+    if (d.imageUrl)      fields.push({ label: 'Thumbnail', value: d.imageUrl, image: true });
+    const postUrl = d.url || (d.shortcode ? 'https://www.instagram.com/p/' + d.shortcode + '/' : '');
+    if (postUrl)         fields.push({ label: 'Post URL',  value: postUrl, link: postUrl });
   } else if (platform === 'x') {
+    const handle = d.author || d.username || '';
+    if (d.authorName)    fields.push({ label: 'Name',     value: String(d.authorName) });
+    if (handle)          fields.push({ label: 'Handle',   value: '@' + handle });
+    if (d.authorFollowers) fields.push({ label: 'Followers', value: String(d.authorFollowers) });
+    if (d.authorVerified==='Yes') fields.push({ label: 'Verified', value: '✓ Blue/Verified' });
     if (d.likes)         fields.push({ label: 'Likes',    value: String(d.likes) });
     if (d.retweets)      fields.push({ label: 'Retweets', value: String(d.retweets) });
     if (d.replies)       fields.push({ label: 'Replies',  value: String(d.replies) });
+    if (d.views)         fields.push({ label: 'Views',    value: String(d.views) });
     if (d.timestamp)     fields.push({ label: 'Posted',   value: String(d.timestamp).slice(0,10) });
-    if (d.tweetUrl||d.url) fields.push({ label: 'URL',   value: d.tweetUrl||d.url, link: true });
+    const tweetUrl = d.tweetUrl || (handle && d.tweetId ? `https://x.com/${handle}/status/${d.tweetId}` : '') || d.url;
+    if (tweetUrl)        fields.push({ label: 'URL',      value: tweetUrl, link: true });
   }
 
   if (!fields.length) return null;
@@ -618,11 +644,13 @@ function buildExpandPanel(item, platform, mode) {
   let html = `<div class="expand-sub-header">◈ FULL RECORD · ${platform.toUpperCase()} · ${mode.replace(/-/g,' ').toUpperCase()}</div>`;
   const grid = fields.map(f => {
     if (f.header) return `<div class="expand-sub-header" style="margin-top:8px">${escHtml(f.label)}</div>`;
-    const val = f.link
-      ? `<a href="${escHtml(f.value)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent2)">${escHtml(f.value.slice(0,60))}</a>`
-      : f.marquee
-        ? `<div class="expand-marquee"><span>${escHtml(f.value)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${escHtml(f.value)}</span></div>`
-        : `<span class="expand-value">${escHtml(f.value)}</span>`;
+    const val = f.image
+      ? `<a href="${escHtml(f.value)}" target="_blank" rel="noopener noreferrer"><img src="${escHtml(f.value)}" style="max-width:120px;max-height:120px;object-fit:cover;border-radius:4px;border:1px solid var(--rule);margin-top:4px" loading="lazy"/></a>`
+      : f.link
+        ? `<a href="${escHtml(f.link||f.value)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent2)">${escHtml(String(f.value).slice(0,60))}</a>`
+        : f.marquee
+          ? `<div class="expand-marquee"><span>${escHtml(f.value)}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${escHtml(f.value)}</span></div>`
+          : `<span class="expand-value">${escHtml(f.value)}</span>`;
     return `<div class="expand-field"><div class="expand-label">${escHtml(f.label)}</div>${val}</div>`;
   }).join('');
   panel.innerHTML = html + grid;
