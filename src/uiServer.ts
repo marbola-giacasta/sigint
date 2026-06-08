@@ -94,42 +94,165 @@ let sharedPage     = null;
 let sharedUserData = null;
 let isHeadless     = true;
 
-const LAUNCH_ARGS = ['--no-sandbox','--disable-blink-features=AutomationControlled','--disable-dev-shm-usage'];
+const LAUNCH_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check'];
+
+/** Returns the correct launch args for the specific browser being used.
+ *
+ *  Edge is extremely picky about launch flags — many Chromium-specific flags
+ *  cause it to fail immediately. Use the bare minimum for Edge.
+ */
+function getBrowserArgs(browserName: string): string[] {
+  const name = (browserName || '').toLowerCase();
+  if (name.includes('edge')) {
+    // Edge on Windows: RendererCodeIntegrity blocks Puppeteer injection.
+    // This flag is the documented fix for "Failed to launch" with Edge + Puppeteer.
+    return [
+      '--no-sandbox',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-features=RendererCodeIntegrity',
+    ];
+  }
+  // Chrome, Brave, Chromium, Vivaldi, Opera
+  return [
+    '--no-sandbox',
+    '--disable-blink-features=AutomationControlled',
+    '--disable-dev-shm-usage',
+    '--no-first-run',
+    '--no-default-browser-check',
+  ];
+}
 
 import { detectBrowsers as _detectBrowsers, type BrowserOption } from './browser/launcher.js';
 import { execSync } from 'node:child_process';
 
+// Persistent profile dirs — keeps cookies/session between restarts
+const PROFILE_DIRS: Record<string,string> = {
+  youtube:   path.join(process.cwd(), '.profile-youtube'),
+  reddit:    path.join(process.cwd(), '.profile-reddit'),
+  instagram: path.join(process.cwd(), '.profile-instagram'),
+  x:         path.join(process.cwd(), '.profile-x'),
+};
+
+// Login page URLs per platform
+const LOGIN_URLS: Record<string,string> = {
+  youtube:   'https://accounts.google.com/signin',
+  reddit:    'https://www.reddit.com/login',
+  instagram: 'https://www.instagram.com/accounts/login/',
+  x:         'https://x.com/i/flow/login',
+};
+
+// Patterns in URL that indicate successful login
+const LOGGED_IN_PATTERNS: Record<string,string[]> = {
+  youtube:   ['myaccount.google.com','youtube.com/feed','accounts.google.com/v3/signin/complete'],
+  reddit:    ['reddit.com/'],
+  instagram: ['instagram.com/'],
+  x:         ['x.com/home','x.com/feed'],
+};
+
 export function findBrowsers(): BrowserOption[] {
-  // First try the launcher's detection (checks known paths + bundled Chromium)
-  const found = _detectBrowsers();
-  if (found.length > 0) return found;
-
-  // Fallback: use shell `where` (Windows) or `which` (Unix)
+  const seen = new Set<string>();
   const list: BrowserOption[] = [];
-  const shellCandidates =
-    process.platform === 'win32'
-      ? [{ name: 'Chrome', cmd: 'where chrome' }, { name: 'Edge', cmd: 'where msedge' }]
-      : [{ name: 'Chrome', cmd: 'which google-chrome' }, { name: 'Chromium', cmd: 'which chromium-browser' }];
+  const add = (name: string, exe: string, headless = false) => {
+    if (!seen.has(exe) && fs.existsSync(exe)) {
+      seen.add(exe); list.push({ name, executablePath: exe, headless });
+    }
+  };
+  // Bundled headless Chromium first
+  const bundled = _detectBrowsers().find(b => b.headless);
+  if (bundled) list.push(bundled);
 
-  for (const c of shellCandidates) {
-    try {
-      const p = execSync(c.cmd, { stdio: ['pipe','pipe','pipe'] })
-        .toString().trim().split('\n')[0].trim();
-      if (p && fs.existsSync(p)) list.push({ name: c.name, executablePath: p, headless: false });
-    } catch { /* not found */ }
+  if (process.platform === 'win32') {
+    const pf   = process.env['ProgramFiles']       ?? 'C:\\Program Files';
+    const pf86 = process.env['ProgramFiles(x86)']  ?? 'C:\\Program Files (x86)';
+    const lad  = process.env['LOCALAPPDATA']        ?? '';
+    add('Chrome',      `${pf}\\Google\\Chrome\\Application\\chrome.exe`);
+    add('Chrome',      `${pf86}\\Google\\Chrome\\Application\\chrome.exe`);
+    add('Chrome',      `${lad}\\Google\\Chrome\\Application\\chrome.exe`);
+    add('Edge',        `${pf}\\Microsoft\\Edge\\Application\\msedge.exe`);
+    add('Edge',        `${pf86}\\Microsoft\\Edge\\Application\\msedge.exe`);
+    add('Brave',       `${pf}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`);
+    add('Brave',       `${pf86}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`);
+    add('Opera',       `${lad}\\Programs\\Opera\\opera.exe`);
+    add('Opera GX',    `${lad}\\Programs\\Opera GX\\opera.exe`);
+    add('Vivaldi',     `${lad}\\Vivaldi\\Application\\vivaldi.exe`);
+    add('Firefox',     `${pf}\\Mozilla Firefox\\firefox.exe`);
+    add('Firefox',     `${pf86}\\Mozilla Firefox\\firefox.exe`);
+  } else if (process.platform === 'darwin') {
+    add('Chrome',  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+    add('Edge',    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
+    add('Brave',   '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser');
+    add('Firefox', '/Applications/Firefox.app/Contents/MacOS/firefox');
+    add('Opera',   '/Applications/Opera.app/Contents/MacOS/Opera');
+    add('Vivaldi', '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi');
+  } else {
+    ['google-chrome','google-chrome-stable','chromium-browser','chromium','microsoft-edge','brave-browser','firefox'].forEach(bin => {
+      try {
+        const p = execSync(`which ${bin}`, {stdio:['pipe','pipe','pipe']}).toString().trim();
+        if (p) add(bin, p);
+      } catch {}
+    });
   }
   return list;
 }
 
-async function launchBrowser(browserName) {
+// Active login-wait promise — resolved when user finishes logging in
+let loginWaitResolve: (() => void) | null = null;
+
+async function launchBrowser(
+  browserName: string,
+  headless = true,
+  platform = '',       // if set, use persistent profile for this platform
+) {
   const list     = findBrowsers();
-  const selected = list.find(b => b.name === browserName) ?? list[0];
+  const selected = list.find(b => b.name === browserName) ?? list.find(b => !b.headless) ?? list[0];
   if (!selected) throw new Error('No browser found. Install Chrome or Edge.');
-  const ud = fs.mkdtempSync(path.join(os.tmpdir(), 'scraper-ui-'));
-  sharedBrowser = await puppeteerCore.launch({
-    headless: selected.headless, executablePath: selected.executablePath,
-    userDataDir: ud, args: LAUNCH_ARGS,
-  });
+
+  // Persistent profile keeps cookies between sessions
+  let ud: string;
+  if (platform && PROFILE_DIRS[platform]) {
+    ud = PROFILE_DIRS[platform];
+    if (!fs.existsSync(ud)) fs.mkdirSync(ud, { recursive: true });
+    origLog(`  ✓  Using persistent ${platform} profile: ${ud}`);
+  } else {
+    ud = fs.mkdtempSync(path.join(os.tmpdir(), 'scraper-ui-'));
+  }
+
+  const useHeadless = platform ? false : headless; // login always needs visible
+  const launchArgs = getBrowserArgs(selected.name);
+  origLog(`  Launching ${selected.name} (${useHeadless ? 'headless' : 'visible'}) with ${launchArgs.length} args`);
+
+  const launchOpts = {
+    headless:       useHeadless,
+    executablePath: selected.executablePath,
+    userDataDir:    ud,
+    args:           launchArgs,
+    timeout:        30_000,
+  };
+
+  try {
+    sharedBrowser = await puppeteerCore.launch(launchOpts);
+  } catch (firstErr: any) {
+    // Profile directory might be locked (browser already running with it)
+    // Fall back to a fresh temp directory
+    origLog(`  ⚠  Profile dir launch failed: ${firstErr.message.slice(0,100)}`);
+    origLog(`  ↻  Retrying with temp profile (session will not persist)...`);
+    const tempUd = fs.mkdtempSync(path.join(os.tmpdir(), 'scraper-retry-'));
+    try {
+      sharedBrowser = await puppeteerCore.launch({ ...launchOpts, userDataDir: tempUd });
+      sharedUserData = tempUd;
+      origLog(`  ✓  Browser launched with temp profile`);
+    } catch (secondErr: any) {
+      // Both attempts failed — provide helpful error
+      throw new Error(
+        `Cannot launch ${selected.name}. ` +
+        `Try: 1) Close all ${selected.name} windows first, ` +
+        `2) Use a different browser, ` +
+        `3) Run as Administrator. ` +
+        `Error: ${secondErr.message.slice(0, 120)}`
+      );
+    }
+  }
   sharedPage = await sharedBrowser.newPage();
   await sharedPage.evaluateOnNewDocument(() => {
     Object.defineProperty(navigator,'webdriver',{get:()=>undefined});
@@ -139,8 +262,9 @@ async function launchBrowser(browserName) {
   await sharedPage.setViewport({ width:1366, height:900 });
   await sharedPage.setUserAgent(USER_AGENT);
   await sharedPage.setExtraHTTPHeaders({'Accept-Language':'en-US,en;q=0.9'});
-  sharedUserData = ud; isHeadless = selected.headless;
-  return { name: selected.name, headless: selected.headless };
+  sharedUserData = platform ? null : ud; // don't delete persistent profiles
+  isHeadless = useHeadless;
+  return { name: selected.name, headless: useHeadless };
 }
 
 async function closeBrowser() {
@@ -384,14 +508,26 @@ async function runScrapeJob(jobId, params) {
     else if (platform === 'instagram') {
       const imagesBaseDir = path.join(process.cwd(), CONFIG.instagram.imagesDirName);
       ensureDir(imagesBaseDir);
-      // Instagram: keep sequential — all tabs share the login session cookie
-      // Concurrency here means opening parallel profile pages in the same context
-      const batchResults = await runConcurrent(inputs.usernames??[], async (username, page) => {
-        const { summary, posts, stories } = await scrapeProfileOnPage(page, username, lc);
-        job.exportData.items.push({ type:'instagram-profile', username, summary, posts, stories });
-        return { username, summary, posts, stories };
-      }, Math.min(concurrency, CONFIG.instagram.parallelTabs), jobId);
-      results.push(...batchResults);
+
+      if (mode === 'search') {
+        // Instagram keyword search — searches explore/tags feed
+        const { scrapeInstagramSearch } = await import('./scraper/instagram-search.js');
+        const batchResults = await runConcurrent(inputs.keywords??[], async (keyword, page) => {
+          const posts = await scrapeInstagramSearch(page, keyword, lc);
+          job.exportData.items.push({ type:'instagram-search', keyword, data: posts });
+          return posts;
+        }, 1, jobId); // sequential — one keyword at a time
+        batchResults.forEach((r: any[]) => results.push(...r));
+
+      } else {
+        // Instagram: keep sequential — all tabs share the login session cookie
+        const batchResults = await runConcurrent(inputs.usernames??[], async (username, page) => {
+          const { summary, posts, stories } = await scrapeProfileOnPage(page, username, lc);
+          job.exportData.items.push({ type:'instagram-profile', username, summary, posts, stories });
+          return { username, summary, posts, stories };
+        }, Math.min(concurrency, CONFIG.instagram.parallelTabs), jobId);
+        results.push(...batchResults);
+      }
     }
 
     job.results = results;
@@ -593,12 +729,63 @@ app.get('/api/browser/status', (req, res) => {
   res.json({ open: !!sharedBrowser, headless: isHeadless, browsers: findBrowsers().map(b=>b.name) });
 });
 
-app.post('/api/browser/launch', async (req, res) => {
+app.post('/api/browser/launch', async (req: any, res: any) => {
   try {
     if (sharedBrowser) await closeBrowser();
-    const info = await launchBrowser(req.body.browserName ?? findBrowsers()[0]?.name);
-    res.json({ ok:true, ...info });
-  } catch (err) { res.status(500).json({ ok:false, error: err.message }); }
+    const { browserName, headless = true, platform = '' } = req.body as {
+      browserName?: string; headless?: boolean; platform?: string;
+    };
+    const info = await launchBrowser(
+      browserName ?? findBrowsers()[0]?.name,
+      headless,
+      platform
+    );
+    res.json({ ok: true, ...info });
+  } catch (err: any) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
+/** POST /api/browser/goto-login
+ *  Navigates the open browser to a platform's login page.
+ *  Returns immediately — the user logs in manually in the visible browser window.
+ */
+app.post('/api/browser/goto-login', async (req: any, res: any) => {
+  const { platform } = req.body as { platform: string };
+  const url = LOGIN_URLS[platform];
+  if (!url)         { res.status(400).json({ ok: false, error: 'Unknown platform' }); return; }
+  if (!sharedPage)  { res.status(400).json({ ok: false, error: 'No browser open' }); return; }
+  try {
+    await sharedPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 }).catch(() => {});
+    origLog(`  ✓  Navigated to ${platform} login page`);
+    res.json({ ok: true, url });
+  } catch (err: any) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
+/** POST /api/browser/confirm-login
+ *  Called by admin UI after they have logged in manually.
+ *  Checks current page URL/DOM to confirm login actually succeeded.
+ */
+app.post('/api/browser/confirm-login', async (req: any, res: any) => {
+  const { platform } = req.body as { platform: string };
+  if (!sharedPage) { res.status(400).json({ ok: false, error: 'No browser open' }); return; }
+  try {
+    const currentUrl = sharedPage.url();
+    const patterns = LOGGED_IN_PATTERNS[platform] ?? [];
+    const loggedIn = patterns.length === 0 || patterns.some(p => currentUrl.includes(p));
+    origLog(`  ${loggedIn ? '✓' : '⚠'}  ${platform} login check: ${currentUrl}`);
+    res.json({ ok: true, loggedIn, url: currentUrl });
+  } catch (err: any) { res.status(500).json({ ok: false, error: err.message }); }
+});
+
+/** POST /api/browser/clear-profile — wipe saved session for a platform */
+app.post('/api/browser/clear-profile', async (req: any, res: any) => {
+  const { platform } = req.body as { platform: string };
+  const dir = PROFILE_DIRS[platform];
+  if (!dir) { res.status(400).json({ ok: false, error: 'Unknown platform' }); return; }
+  try {
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    origLog(`  ✓  Cleared ${platform} saved session`);
+    res.json({ ok: true, msg: `${platform} session cleared — log in again next time.` });
+  } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 app.post('/api/browser/close', async (req, res) => {
@@ -810,8 +997,35 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
   // Flatten all items for this job into one section
   const newItems: unknown[] = [];
   for (const item of job.exportData.items) {
-    if (Array.isArray((item as any).data)) {
-      newItems.push(...(item as any).data);
+    const it = item as any;
+    if (Array.isArray(it.data)) {
+      // YouTube/Reddit/X format: { data: [...results] }
+      newItems.push(...it.data);
+    } else if (it.type === 'instagram-profile') {
+      // Instagram format: { type, username, summary, posts, stories }
+      // Flatten posts into ticker items, enriched with profile summary
+      const posts: any[] = Array.isArray(it.posts) ? it.posts : [];
+      posts.forEach((p: any) => newItems.push({
+        ...p,
+        author:     it.username,
+        username:   it.username,
+        followers:  it.summary?.followers,
+        description: p.description || p.caption || '',
+        url:        p.shortcode ? `https://www.instagram.com/p/${p.shortcode}/` : '',
+        platform:   'instagram',
+      }));
+      // If no posts, push summary as single record
+      if (posts.length === 0 && it.summary) {
+        newItems.push({
+          ...it.summary,
+          author:   it.username,
+          username: it.username,
+          platform: 'instagram',
+        });
+      }
+    } else if (it.username && it.summary) {
+      // Generic Instagram fallback
+      newItems.push({ ...it.summary, author: it.username, username: it.username });
     }
   }
   const newSection = { platform, mode, items: newItems.slice(0, n) };

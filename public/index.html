@@ -28,8 +28,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .app{display:flex;flex-direction:column;height:100vh}
 .topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:52px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
 .topbar-title{font-size:16px;font-weight:800;letter-spacing:-.3px}
-.main{display:flex;flex:1;min-height:0}
-.sidebar{width:292px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.main{display:flex;flex:1;min-height:0;overflow:hidden}
+.sidebar{width:292px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;height:100%}
 .content{flex:1;display:flex;flex-direction:column;min-width:0}
 .sb-section{border-bottom:1px solid var(--border);padding:14px 16px}
 .sb-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:10px}
@@ -523,6 +523,7 @@ const PLATFORMS={
   ]},
   instagram:{label:'📸 Instagram',pill:'pill-ig',modes:[
     {id:'profile',label:'Profile scrape',icon:'👤',desc:'Posts, stories, comments'},
+    {id:'search',label:'Search by keyword',icon:'🔍',desc:'Search posts by hashtag/keyword'},
   ]},
   x:{label:'𝕏 Twitter/X',pill:'pill-x',modes:[
     {id:'search',label:'Search tweets',icon:'🔍',desc:'Tweets matching a keyword'},
@@ -538,31 +539,155 @@ const X_FILTERS=[{label:'Latest (default)',value:null},{label:'Top tweets',value
 
 // ── Browser Panel ─────────────────────────────────────────────────────────────
 function BrowserPanel(){
-  const [st,setSt]=useState({open:false,browsers:[]});
-  const [sel,setSel]=useState('');const[busy,setBusy]=useState(false);
-  const refresh=async()=>{const r=await API('/api/browser/status');const d=await r.json();setSt(d);if(!sel&&d.browsers.length)setSel(d.browsers[0]);};
-  useEffect(()=>{refresh();const t=setInterval(refresh,3000);return()=>clearInterval(t);},[]);
-  const launch=async()=>{setBusy(true);await API('/api/browser/launch',{method:'POST',body:JSON.stringify({browserName:sel})});await refresh();setBusy(false);};
-  const close=async()=>{setBusy(true);await API('/api/browser/close',{method:'POST'});await refresh();setBusy(false);};
+  const PLATFORMS = [
+    {id:'youtube',   label:'YouTube',   icon:'▶', color:'#ff4444'},
+    {id:'reddit',    label:'Reddit',    icon:'◉', color:'#ff6314'},
+    {id:'instagram', label:'Instagram', icon:'◈', color:'#c13584'},
+    {id:'x',         label:'X/Twitter', icon:'✦', color:'#8888ff'},
+  ];
+
+  const [browsers,  setBrowsers]  = React.useState([]);
+  const [status,    setStatus]    = React.useState({open:false,headless:true});
+  const [busy,      setBusy]      = React.useState(false);
+  const [msg,       setMsg]       = React.useState('');
+  const [loginPlat, setLoginPlat] = React.useState('');
+  const [loginStep, setLoginStep] = React.useState('idle');
+  const [platSet,   setPlatSet]   = React.useState(
+    ()=>Object.fromEntries(['youtube','reddit','instagram','x'].map(id=>[id,{browser:'',headless:true}]))
+  );
+
+  const refresh = async()=>{
+    try{
+      const d = await (await API('/api/browser/status')).json();
+      setStatus({open:d.open,headless:d.headless});
+      if(d.browsers?.length){
+        setBrowsers(d.browsers);
+        setPlatSet(prev=>{
+          const next={...prev};
+          ['youtube','reddit','instagram','x'].forEach(id=>{
+            if(!next[id].browser) next[id]={...next[id],browser:d.browsers[0]};
+          });
+          return next;
+        });
+      }
+    }catch{}
+  };
+  React.useEffect(()=>{refresh();const t=setInterval(refresh,3000);return()=>clearInterval(t);},[]);
+
+  const set=(id,key,val)=>setPlatSet(p=>({...p,[id]:{...p[id],[key]:val}}));
+  const flash=(txt,ms=6000)=>{setMsg(txt);setTimeout(()=>setMsg(''),ms);};
+
+  const launchFor=async(plat)=>{
+    const s=platSet[plat];
+    if(!s.browser){flash('✗ Select a browser first');return;}
+    setBusy(true);setMsg('');setLoginPlat(plat);setLoginStep('idle');
+    try{
+      if(status.open) await API('/api/browser/close',{method:'POST'});
+      const r=await API('/api/browser/launch',{method:'POST',body:JSON.stringify({
+        browserName:s.browser,
+        headless:s.headless,
+        platform:s.headless?'':plat,
+      })});
+      const d=await r.json();
+      if(!d.ok) throw new Error(d.error);
+      await refresh();
+      if(!s.headless){
+        setLoginStep('open');
+        await API('/api/browser/goto-login',{method:'POST',body:JSON.stringify({platform:plat})});
+        setLoginStep('waiting');
+        flash(`Browser open on ${PLATFORMS.find(p=>p.id===plat)?.label} login — log in then click Done`,120000);
+      } else {
+        flash(`✓ Headless browser ready for ${PLATFORMS.find(p=>p.id===plat)?.label}`);
+        setLoginPlat('');
+      }
+    }catch(e){flash('✗ '+e.message);setLoginStep('idle');setLoginPlat('');}
+    setBusy(false);
+  };
+
+  const confirmLogin=async()=>{
+    setBusy(true);
+    try{
+      const d=await (await API('/api/browser/confirm-login',{method:'POST',body:JSON.stringify({platform:loginPlat})})).json();
+      if(d.loggedIn){setLoginStep('done');flash(`✓ ${PLATFORMS.find(p=>p.id===loginPlat)?.label} login saved — ready to scrape!`);}
+      else flash(`⚠ Not logged in yet (${d.url?.slice(0,50)}). Finish login then click Done again.`);
+    }catch(e){flash('✗ '+e.message);}
+    setBusy(false);
+  };
+
+  const clearSession=async(plat)=>{
+    const d=await (await API('/api/browser/clear-profile',{method:'POST',body:JSON.stringify({platform:plat})})).json();
+    flash(d.ok?`✓ ${plat} session cleared`:'✗ '+d.error);
+  };
+
+  const close=async()=>{setBusy(true);await API('/api/browser/close',{method:'POST'});setLoginStep('idle');setLoginPlat('');await refresh();setBusy(false);};
+
+  const selStyle={fontSize:11,padding:'4px 6px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',width:'100%'};
+
   return(
     <div className="sb-section">
       <div className="sb-label">Browser</div>
-      <div className="browser-status" style={{marginBottom:8}}>
-        <div className={`dot ${st.open?'dot-green':'dot-red'}`}/>
-        <span style={{color:st.open?'var(--green)':'var(--red)',fontWeight:600}}>{st.open?(st.headless?'Headless running':'Browser open'):'Not running'}</span>
+
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+        <div className={`dot ${status.open?'dot-green':'dot-red'}`}/>
+        <span style={{color:status.open?'var(--green)':'var(--red)',fontWeight:600,fontSize:12}}>
+          {status.open?(status.headless?'Headless running':'Visible browser open'):'Not running'}
+        </span>
+        {status.open&&<button onClick={close} disabled={busy} style={{marginLeft:'auto',background:'transparent',border:'1px solid var(--border)',borderRadius:4,color:'var(--text3)',fontSize:11,padding:'2px 8px',cursor:'pointer'}}>
+          {busy?<span className="spinner"/>:'✕ Close'}
+        </button>}
       </div>
-      {!st.open?(
-        <>{st.browsers.length===0&&<div style={{color:'var(--red)',fontSize:11,marginBottom:8}}>No browser found.</div>}
-          <div className="field"><select value={sel} onChange={e=>setSel(e.target.value)}>{st.browsers.map(b=><option key={b}>{b}</option>)}</select></div>
-          <button className="btn btn-primary btn-full" onClick={launch} disabled={busy||!st.browsers.length}>{busy?<><span className="spinner"/>&nbsp;Launching…</>:'🚀 Launch Browser'}</button>
-        </>
-      ):(
-        <button className="btn btn-ghost btn-full" onClick={close} disabled={busy}>{busy?<span className="spinner"/>:'✕'} Close Browser</button>
-      )}
+
+      {loginStep==='waiting'&&<div style={{background:'#0d1a0d',border:'1px solid #2a5a2a',borderRadius:6,padding:'10px 12px',marginBottom:10}}>
+        <div style={{color:'var(--green)',fontWeight:700,marginBottom:6}}>✦ {PLATFORMS.find(p=>p.id===loginPlat)?.label} login open</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:8,lineHeight:1.5}}>Log in · complete captcha/2FA · click Done.</div>
+        <button className="btn btn-primary btn-full" onClick={confirmLogin} disabled={busy}>
+          {busy?<><span className="spinner"/>&nbsp;Checking…</>:"✓ Done — I'm logged in"}
+        </button>
+      </div>}
+
+      {loginStep==='done'&&<div style={{background:'#0d1a0d',border:'1px solid #2a5a2a',borderRadius:6,padding:'8px 12px',marginBottom:10,fontSize:11,color:'var(--green)'}}>
+        ✓ {PLATFORMS.find(p=>p.id===loginPlat)?.label} session saved.
+      </div>}
+
+      {browsers.length===0&&<div style={{color:'var(--red)',fontSize:11,marginBottom:8}}>No browser found — install Chrome or Edge.</div>}
+
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {PLATFORMS.map(plat=>{
+          const s=platSet[plat.id];
+          return(
+            <div key={plat.id} style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                <span style={{color:plat.color,fontWeight:700,fontSize:12}}>{plat.icon} {plat.label}</span>
+                <button title="Clear saved session" onClick={()=>clearSession(plat.id)} style={{marginLeft:'auto',background:'transparent',border:'none',color:'var(--text3)',fontSize:12,cursor:'pointer',lineHeight:1}}>🗑</button>
+              </div>
+              <div style={{marginBottom:5}}>
+                <select value={s.browser} onChange={e=>set(plat.id,'browser',e.target.value)} style={selStyle}>
+                  {browsers.length===0&&<option>No browsers found</option>}
+                  {browsers.map(b=><option key={b}>{b}</option>)}
+                </select>
+              </div>
+              <div style={{marginBottom:6}}>
+                <select value={s.headless?'headless':'login'} onChange={e=>set(plat.id,'headless',e.target.value==='headless')} style={selStyle}>
+                  <option value="headless">Headless (fast)</option>
+                  <option value="login">Visible + Login</option>
+                </select>
+              </div>
+              <button className="btn btn-primary btn-full" style={{fontSize:11,padding:'5px'}} onClick={()=>launchFor(plat.id)} disabled={busy||!s.browser||loginStep==='waiting'}>
+                {busy&&loginPlat===plat.id?<><span className="spinner"/>&nbsp;Launching…</>:s.headless?`🚀 Launch for ${plat.label}`:`🔓 Open & Login ${plat.label}`}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {msg&&<div style={{marginTop:8,fontSize:11,padding:'6px 10px',borderRadius:5,lineHeight:1.5,
+        background:msg.startsWith('✓')?'#0d1a0d':msg.startsWith('✗')?'#1a0808':'#1a1400',
+        color:msg.startsWith('✓')?'var(--green)':msg.startsWith('✗')?'var(--red)':'#d4a030',
+        border:`1px solid ${msg.startsWith('✓')?'#2a5a2a':msg.startsWith('✗')?'#5a1a1a':'#5a4a00'}`
+      }}>{msg}</div>}
     </div>
   );
 }
-
 
 // ── FileTextarea — textarea with file upload button ────────────────────────────
 function FileTextarea({ label, value, onChange, placeholder, minH = 72 }) {
@@ -624,7 +749,7 @@ function ScrapeForm({onJobStart}){
     onJobStart(jobId,plat,mode);setBusy(false);
   };
   const isYT=plat==='youtube';const isRD=plat==='reddit';const isX=plat==='x';
-  const needKw=['search','channel-search','search-posts','search-subs'].includes(mode)&&!isX;
+  const needKw=['search','channel-search','search-posts','search-subs'].includes(mode)&&!isX||plat==='instagram'&&mode==='search';
   const needXKw=isX&&mode==='search';
   const needUrl=['comments','post-comments'].includes(mode)||(isX&&mode==='replies');
   const needCh=mode==='channel-videos';const needSub=mode==='subreddit';
