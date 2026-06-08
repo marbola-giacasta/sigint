@@ -1,15 +1,6 @@
-2026/06/08-09:42:25.837 6694 Reusing MANIFEST C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/MANIFEST-000001
-2026/06/08-09:42:25.848 6694 Recovering log #23
-2026/06/08-09:42:25.851 6694 Reusing old log C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/000023.log 
-2026/06/08-09:42:40.477 6694 Level-0 table #27: started
-2026/06/08-09:42:40.482 6694 Level-0 table #27: 17377 bytes OK
-2026/06/08-09:42:40.484 6694 Delete type=0 #23
-2026/06/08-09:42:40.487 6694 Compacting 4@0 + 1@1 files
-2026/06/08-09:42:40.495 6694 Generated table #28@0: 1165 keys, 87367 bytes
-2026/06/08-09:42:40.496 6694 Compacted 4@0 + 1@1 files => 87367 bytes
-2026/06/08-09:42:40.496 6694 compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/06/08-09:42:40.497 6694 Delete type=2 #17
-2026/06/08-09:42:40.497 6694 Delete type=2 #19
-2026/06/08-09:42:40.497 6694 Delete type=2 #21
-2026/06/08-09:42:40.497 6694 Delete type=2 #24
-2026/06/08-09:42:40.497 6694 Delete type=2 #27
+2026/06/08-11:46:47.334 49d8 Reusing MANIFEST C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/MANIFEST-000001
+2026/06/08-11:46:47.341 49d8 Recovering log #26
+2026/06/08-11:46:47.345 49d8 Reusing old log C:\Users\uut\Desktop\ig+yt+rd+X-scraper_UI+sigint_ts_online\.profile-instagram\Default\Local Storage\leveldb/000026.log 
+2026/06/08-11:51:24.020 4724 Level-0 table #31: started
+2026/06/08-11:51:24.027 4724 Level-0 table #31: 25256 bytes OK
+2026/06/08-11:51:24.031 4724 Delete type=0 #26

@@ -501,17 +501,16 @@ function extractCols(item, platform, mode) {
       url     = d.url || '';
     }
   } else if (platform === 'instagram') {
-    // author comes from grid scraper aria-label; username from profile scraper
     let handle = d.author || d.username || d.authorFullName || '';
-    // last-resort: extract username from post URL (e.g. instagram.com/p/ABC/ has no user, but profile URL does)
     if (!handle && d.url) {
       const um = String(d.url).match(/instagram\.com\/([^/?p][^/?]+)\//);
       if (um) handle = um[1];
     }
     author  = handle ? '@' + handle : '—';
+    // Use any available text field; for profile posts use likes/comments as fallback
     content = d.caption || d.description || d.text
       || (d.likes ? '♥ ' + d.likes + (d.commentsCount ? '  💬 ' + d.commentsCount : '') : '')
-      || (d.shortcode ? '[Post]' : '');
+      || (d.shortcode ? '📷 instagram.com/p/' + d.shortcode : '');
     ts      = d.timestamp ? String(d.timestamp).slice(0,10) : '';
     url     = d.url
       || (d.shortcode ? 'https://www.instagram.com/p/' + d.shortcode + '/' : '')
@@ -712,7 +711,11 @@ function buildExpandPanel(item, platform, mode) {
   const panel = document.createElement('div');
   panel.className = 'expand-panel';
 
-  let html = `<div class="expand-sub-header">◈ FULL RECORD · ${platform.toUpperCase()} · ${mode.replace(/-/g,' ').toUpperCase()}</div>`;
+  // Show both timestamps: when published on the platform and when captured by SIGINT
+  const capturedStr = d.capturedAt
+    ? `  ·  CAPTURED ${new Date(d.capturedAt).toUTCString().slice(0,25).toUpperCase()}`
+    : '';
+  let html = `<div class="expand-sub-header">◈ FULL RECORD · ${platform.toUpperCase()} · ${mode.replace(/-/g,' ').toUpperCase()}${capturedStr}</div>`;
   const grid = fields.map(f => {
     if (f.header) return `<div class="expand-sub-header" style="margin-top:8px">${escHtml(f.label)}</div>`;
     const val = f.image

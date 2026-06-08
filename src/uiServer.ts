@@ -669,7 +669,8 @@ async function runScrapeJob(jobId: string, params: any): Promise<void> {
     else if (platform === 'linkedin') {
       // LinkedIn requires login — persistent profile in .profile-linkedin/
       if (mode === 'feed-search') {
-        const { scrapeLinkedInFeed } = await import('./scraper/linkedin/feed-search.js');
+        // @ts-ignore — resolved at runtime
+        const { scrapeLinkedInFeed } = await import('./scraper/linkedin/feed-search.js' as any);
         const batches = await runConcurrent(inputs.keywords ?? [], async (kw: string, page: any) => {
           const posts = await scrapeLinkedInFeed(page, kw, lc);
           job.exportData.items.push({ type: 'linkedin-feed', data: posts });
@@ -678,7 +679,8 @@ async function runScrapeJob(jobId: string, params: any): Promise<void> {
         batches.forEach((r: any[]) => results.push(...r));
 
       } else if (mode === 'job-search') {
-        const { scrapeLinkedInJobs } = await import('./scraper/linkedin/job-search.js');
+        // @ts-ignore — resolved at runtime
+        const { scrapeLinkedInJobs } = await import('./scraper/linkedin/job-search.js' as any);
         const batches = await runConcurrent(inputs.keywords ?? [], async (kw: string, page: any) => {
           const jobs_ = await scrapeLinkedInJobs(page, kw, inputs.location ?? '', lc);
           job.exportData.items.push({ type: 'linkedin-jobs', data: jobs_ });
@@ -1148,7 +1150,9 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
     const it = item as any;
     if (Array.isArray(it.data)) {
       // YouTube/Reddit/X/LinkedIn: items already in { data: [...] } format
-      newItems.push(...it.data);
+      // Add capturedAt timestamp to each item (when pushed to SIGINT)
+      const now = Date.now();
+      newItems.push(...it.data.map((item: any) => ({ ...item, capturedAt: now })));
     } else if (it.type === 'instagram-profile') {
       // Instagram profile: flatten posts, enrich with profile metadata
       const posts = Array.isArray(it.posts) ? it.posts : [];
@@ -1157,15 +1161,17 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
         author:      it.username,
         username:    it.username,
         followers:   it.summary?.followers,
-        description: p.description || p.caption || '',
-        url:         p.shortcode ? `https://www.instagram.com/p/${p.shortcode}/` : '',
+        // Prefer any available text; fall back to engagement stats as content
+        description: p.description || p.caption || p.text
+          || (p.likes ? `♥ ${p.likes}${p.commentsCount ? '  💬 ' + p.commentsCount : ''}` : ''),
+        url:         p.url || (p.shortcode ? `https://www.instagram.com/p/${p.shortcode}/` : ''),
+        capturedAt:  Date.now(),  // when pushed to SIGINT
       }));
       if (posts.length === 0 && it.summary) {
-        newItems.push({ ...it.summary, author: it.username, username: it.username });
+        newItems.push({ ...it.summary, author: it.username, username: it.username, capturedAt: Date.now() });
       }
     } else if (it.username && it.summary) {
-      // Generic Instagram fallback
-      newItems.push({ ...it.summary, author: it.username, username: it.username });
+      newItems.push({ ...it.summary, author: it.username, username: it.username, capturedAt: Date.now() });
     }
   }
 

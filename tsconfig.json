@@ -17,5 +17,14 @@
     "types":                        ["node"]
   },
   "include":  ["src/**/*"],
-  "exclude":  ["node_modules", "dist"]
+  "exclude":  [
+    "node_modules",
+    "dist",
+    "src/index.ts",
+    "src/instagram-session.ts",
+    "src/reddit-session.ts",
+    "src/youtube-session.ts",
+    "src/x-session.ts",
+    "src/cli/**/*"
+  ]
 }
