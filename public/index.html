@@ -1004,8 +1004,132 @@ function useMobile() {
   }, []);
   return mobile;
 }
+// ── CrossSearchForm ───────────────────────────────────────────────────────────
+function CrossSearchForm({onJobStart}){
+  const PLATS = [
+    {id:'youtube',   label:'YouTube',   icon:'▶', color:'#ff4444',
+     modes:[{id:'search',label:'Search videos'},{id:'channel-search',label:'Search channels'}]},
+    {id:'reddit',    label:'Reddit',    icon:'◉', color:'#ff6314',
+     modes:[{id:'search',label:'Search posts'},{id:'search-subs',label:'Search subreddits'}]},
+    {id:'instagram', label:'Instagram', icon:'◈', color:'#c13584',
+     modes:[{id:'search',label:'Search by keyword'},{id:'profile',label:'Profile scrape'}]},
+    {id:'x',         label:'X/Twitter', icon:'✦', color:'#8888ff',
+     modes:[{id:'search',label:'Search tweets'}]},
+  ];
+
+  const [kw,      setKw]      = useState('');
+  const [sel,     setSel]     = useState({youtube:true,reddit:true,instagram:false,x:false});
+  const [modes,   setModes]   = useState(Object.fromEntries(PLATS.map(p=>[p.id,p.modes[0].id])));
+  const [limit,   setLimit]   = useState(50);
+  const [running, setRunning] = useState(false);
+  const [status,  setStatus]  = useState({});
+
+  const toggle = id => setSel(p=>({...p,[id]:!p[id]}));
+  const setMode = (id,m) => setModes(p=>({...p,[id]:m}));
+
+  const selStyle = {fontSize:11,padding:'3px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',width:'100%'};
+
+  const run = async () => {
+    const kws = kw.trim();
+    if (!kws){ alert('Enter a keyword'); return; }
+    const platforms = PLATS.filter(p=>sel[p.id]);
+    if (!platforms.length){ alert('Select at least one platform'); return; }
+    setRunning(true);
+    setStatus({});
+
+    for (const p of platforms) {
+      setStatus(prev=>({...prev,[p.id]:'⏳ Running…'}));
+      try {
+        const body = {
+          platform: p.id,
+          mode:     modes[p.id],
+          inputs: {
+            keywords: p.id==='instagram'&&modes[p.id]==='profile' ? undefined : kws,
+            usernames: p.id==='instagram'&&modes[p.id]==='profile' ? kws : undefined,
+          },
+          limit:       { mode:'count', count: limit },
+          concurrency: 1,
+        };
+        const r = await API('/api/run-job',{method:'POST',body:JSON.stringify(body)});
+        const d = await r.json();
+        if (d.jobId) {
+          onJobStart(d.jobId, p.id, modes[p.id]);
+          setStatus(prev=>({...prev,[p.id]:'✓ Job started: '+d.jobId.slice(0,8)}));
+        } else {
+          setStatus(prev=>({...prev,[p.id]:'✗ '+( d.error||'Failed')}));
+        }
+      } catch(e) {
+        setStatus(prev=>({...prev,[p.id]:'✗ '+e.message}));
+      }
+      // Small delay between platforms
+      await new Promise(r=>setTimeout(r,800));
+    }
+    setRunning(false);
+  };
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div className="sb-section">
+        <div className="sb-label">Cross-Search</div>
+        <div style={{fontSize:11,color:'var(--text3)',marginBottom:10,lineHeight:1.5}}>
+          Search one keyword across multiple platforms simultaneously.
+        </div>
+
+        {/* Keyword input */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Keyword</div>
+          <input value={kw} onChange={e=>setKw(e.target.value)}
+            placeholder="e.g. bitcoin"
+            style={{width:'100%',boxSizing:'border-box',padding:'7px 10px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,outline:'none'}}/>
+        </div>
+
+        {/* Collection limit */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Results per platform</div>
+          <select value={limit} onChange={e=>setLimit(Number(e.target.value))} style={selStyle}>
+            {[10,25,50,100,200].map(n=><option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+
+        {/* Platform checkboxes with mode selectors */}
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:6,letterSpacing:'.08em'}}>PLATFORMS & MODES</div>
+        <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:14}}>
+          {PLATS.map(p=>(
+            <div key={p.id} style={{
+              background:'var(--bg3)',border:`1px solid ${sel[p.id]?p.color:'var(--border)'}`,
+              borderRadius:6,padding:'8px 10px',opacity:sel[p.id]?1:0.5,transition:'all .15s'
+            }}>
+              <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',marginBottom:sel[p.id]?6:0}}>
+                <input type="checkbox" checked={sel[p.id]} onChange={()=>toggle(p.id)}
+                  style={{accentColor:p.color,width:14,height:14}}/>
+                <span style={{color:p.color,fontWeight:700,fontSize:12}}>{p.icon} {p.label}</span>
+              </label>
+              {sel[p.id]&&(
+                <select value={modes[p.id]} onChange={e=>setMode(p.id,e.target.value)} style={selStyle}>
+                  {p.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}
+                </select>
+              )}
+              {status[p.id]&&(
+                <div style={{fontSize:10,marginTop:5,color:status[p.id].startsWith('✓')?'var(--green)':status[p.id].startsWith('✗')?'var(--red)':'var(--text3)'}}>
+                  {status[p.id]}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button className="btn btn-primary btn-full" onClick={run} disabled={running||!kw.trim()}>
+          {running ? <><span className="spinner"/>&nbsp;Running cross-search…</> : '✦ Run Cross-Search'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function App(){
-  const [jobId,setJobId]=useState(null);const[plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
+  const [jobId,setJobId]=useState(null);
+  const [sideTab,setSideTab]=useState('scrape');const[plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
   const [tab,setTab]=useState('log');const[exporting,setExp]=useState(false);
   const[tickerLimit,setTickerLimit]=useState(20);
   const[pushing,setPush]=useState(false);
@@ -1088,7 +1212,12 @@ function App(){
       <div className="main">
         <div className="sidebar">
           <BrowserPanel/>
-          <ScrapeForm onJobStart={handleStart}/>
+          <div style={{display:'flex',borderBottom:'1px solid var(--border)',marginBottom:0}}>
+            <button onClick={()=>setSideTab('scrape')} style={{flex:1,padding:'8px 0',fontSize:11,background:'transparent',border:'none',borderBottom:sideTab==='scrape'?'2px solid var(--blue)':'2px solid transparent',color:sideTab==='scrape'?'var(--blue)':'var(--text3)',cursor:'pointer',fontWeight:sideTab==='scrape'?700:400,letterSpacing:'.06em'}}>SCRAPE</button>
+            <button onClick={()=>setSideTab('cross')} style={{flex:1,padding:'8px 0',fontSize:11,background:'transparent',border:'none',borderBottom:sideTab==='cross'?'2px solid var(--blue)':'2px solid transparent',color:sideTab==='cross'?'var(--blue)':'var(--text3)',cursor:'pointer',fontWeight:sideTab==='cross'?700:400,letterSpacing:'.06em'}}>✦ CROSS-SEARCH</button>
+          </div>
+          {sideTab==='scrape' && <ScrapeForm onJobStart={handleStart}/>}
+          {sideTab==='cross'  && <CrossSearchForm onJobStart={handleStart}/>}
         </div>
         <div className="content">
           <div className="tabs">

@@ -104,13 +104,16 @@ const LAUNCH_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--no-first-run'
 function getBrowserArgs(browserName: string): string[] {
   const name = (browserName || '').toLowerCase();
   if (name.includes('edge')) {
-    // Edge on Windows: RendererCodeIntegrity blocks Puppeteer injection.
-    // This flag is the documented fix for "Failed to launch" with Edge + Puppeteer.
+    // Edge on Windows: bare minimum + RendererCodeIntegrity disable.
+    // NOTE: if Edge still fails, it means Windows Group Policy blocks automation.
+    // Workaround: run the server as Administrator, or use Chrome/Brave instead.
     return [
       '--no-sandbox',
       '--no-first-run',
       '--no-default-browser-check',
       '--disable-features=RendererCodeIntegrity',
+      '--disable-web-security',
+      '--allow-running-insecure-content',
     ];
   }
   // Chrome, Brave, Chromium, Vivaldi, Opera

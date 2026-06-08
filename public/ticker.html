@@ -501,16 +501,21 @@ function extractCols(item, platform, mode) {
       url     = d.url || '';
     }
   } else if (platform === 'instagram') {
-    const handle = d.author || d.username || d.authorFullName || '';
+    // author comes from grid scraper aria-label; username from profile scraper
+    let handle = d.author || d.username || d.authorFullName || '';
+    // last-resort: extract username from post URL (e.g. instagram.com/p/ABC/ has no user, but profile URL does)
+    if (!handle && d.url) {
+      const um = String(d.url).match(/instagram\.com\/([^/?p][^/?]+)\//);
+      if (um) handle = um[1];
+    }
     author  = handle ? '@' + handle : '—';
-    // caption field from grid scraper (alt text), description from profile scraper
     content = d.caption || d.description || d.text
-      || (d.likes ? `♥ ${d.likes}` + (d.commentsCount ? `  💬 ${d.commentsCount}` : '') : '')
-      || (d.shortcode ? `[Post]` : '');
+      || (d.likes ? '♥ ' + d.likes + (d.commentsCount ? '  💬 ' + d.commentsCount : '') : '')
+      || (d.shortcode ? '[Post]' : '');
     ts      = d.timestamp ? String(d.timestamp).slice(0,10) : '';
     url     = d.url
-      || (d.shortcode ? `https://www.instagram.com/p/${d.shortcode}/` : '')
-      || (handle ? `https://www.instagram.com/${handle}/` : '');
+      || (d.shortcode ? 'https://www.instagram.com/p/' + d.shortcode + '/' : '')
+      || (handle ? 'https://www.instagram.com/' + handle + '/' : '');
   } else if (platform === 'x') {
     // X scraper returns: author=screen_name, authorName=display name, text, tweetUrl, timestamp
     const handle = d.author || d.username || '';
@@ -533,7 +538,47 @@ function extractCols(item, platform, mode) {
 }
 
 // ── Sort comparator ───────────────────────────────────────────────────────────
-// Convert "3d ago", "2mo ago", "Streamed 5d ago", "1y ago" → seconds-ago number for sorting
+// ── Live timestamp refresh ────────────────────────────────────────────────────
+// Converts stored relative strings ("3d ago", "Streamed 2mo ago") back to
+// approximate Date objects, then re-renders as fresh relative time every minute.
+function relStrToDate(s) {
+  if (!s) return null;
+  const clean = String(s).replace(/^Streamed\s*/i,'').replace(/\s*ago$/i,'').trim();
+  const n = parseFloat(clean);
+  if (isNaN(n)) return null;
+  const ms = /y/.test(clean)   ? n*365*86400*1000
+           : /mo/.test(clean)  ? n*30 *86400*1000
+           : /w/.test(clean)   ? n*7  *86400*1000
+           : /d/.test(clean)   ? n    *86400*1000
+           : /h/.test(clean)   ? n    *3600 *1000
+           : /min/.test(clean) ? n    *60   *1000 : null;
+  if (!ms) return null;
+  return new Date(Date.now() - ms);
+}
+
+function dateToRel(d) {
+  if (!d) return null;
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 60)   return 'just now';
+  if (s < 3600) return Math.round(s/60)   + 'min ago';
+  if (s < 86400)return Math.round(s/3600) + 'h ago';
+  if (s < 2592000) return Math.round(s/86400) + 'd ago';
+  if (s < 31536000)return Math.round(s/2592000)+ 'mo ago';
+  return Math.round(s/31536000) + 'y ago';
+}
+
+function refreshTimestamps() {
+  document.querySelectorAll('.col-ts[data-ts]').forEach(el => {
+    const raw = el.dataset.ts;
+    if (!raw || raw.includes('-')) return; // already absolute date, skip
+    const d = relStrToDate(raw);
+    if (d) el.textContent = dateToRel(d);
+  });
+}
+setInterval(refreshTimestamps, 60_000);
+
+// Convert "3d ago"
+, "2mo ago", "Streamed 5d ago", "1y ago" → seconds-ago number for sorting
 function tsToSeconds(ts) {
   if (!ts) return Infinity;
   const s = ts.replace(/^Streamed\s*/i, '').replace(/\s*ago$/i, '').trim();
@@ -674,7 +719,7 @@ function buildRow(item, platform, mode, isNew) {
     <div class="col-content-wrap">
       <span class="col-content-inner" style="animation-duration:${duration}s">${contentHtml}</span>
     </div>
-    <div class="col-ts">${escHtml(ts)}</div>
+    <div class="col-ts" data-ts="${escHtml(ts)}">${escHtml(ts)}</div>
   `;
 
   // Build expand panel
