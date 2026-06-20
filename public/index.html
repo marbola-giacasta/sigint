@@ -1101,6 +1101,10 @@ function CrossSearchForm({onJobStart}){
 
     setRunning(true);
     setCompletedJobs({});
+    setMsg('');
+
+    // LOCAL map — tracks job IDs as they complete (avoids React state timing issues)
+    const doneJobs = {};
 
     // Initialise all statuses to queued
     const initStatus = {};
@@ -1110,39 +1114,37 @@ function CrossSearchForm({onJobStart}){
     });
     setStatus({...initStatus});
 
-    // Run platforms SEQUENTIALLY — each must fully complete before the next starts
+    // Run platforms SEQUENTIALLY — each must fully finish before the next starts
     for (const p of platforms) {
       for (const modeId of [...selModes[p.id]]) {
-        const modeInfo = p.modes.find(m=>m.id===modeId);
+        const modeInfo    = p.modes.find(m=>m.id===modeId);
         const needsUrl      = modeInfo?.inputs?.includes('urls');
         const needsUsername = modeInfo?.inputs?.includes('usernames');
 
         const payload = {
-          platform: p.id,
-          mode:     modeId,
+          platform: p.id, mode: modeId,
           inputs: {
             keywords:  needsUrl||needsUsername ? [] : kws,
             urls:      needsUrl                ? kws : [],
             usernames: needsUsername           ? kws : [],
             sort, time,
           },
-          limit:       { mode:'count', count: limit },
-          concurrency: workers,
-          filter:      null,
+          limit: { mode:'count', count: limit },
+          concurrency: workers, filter: null,
         };
 
         try {
-          // 1. Dispatch job
+          // 1. Dispatch job to server queue
           const r = await API('/api/scrape', {method:'POST', body:JSON.stringify(payload)});
           if (!r.ok) throw new Error('HTTP '+r.status+': '+(await r.text()).slice(0,80));
           const d = await r.json();
-          if (!d.jobId) throw new Error(d.error || 'No jobId returned');
+          if (!d.jobId) throw new Error(d.error||'No jobId returned');
 
-          // 2. Register with parent so live log tab shows this job
+          // 2. Show in live log tab
           onJobStart(d.jobId, p.id, modeId);
           setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]:'▶ running…'}}));
 
-          // 3. WAIT for job to fully complete via SSE before moving to next platform
+          // 3. Wait for job to FULLY COMPLETE via SSE before moving to next
           await new Promise((resolve) => {
             const es = new EventSource('/api/stream/'+d.jobId);
             const timeout = setTimeout(()=>{ es.close(); resolve(null); }, 600_000);
@@ -1150,11 +1152,14 @@ function CrossSearchForm({onJobStart}){
               try {
                 const msg = JSON.parse(ev.data);
                 if (msg.type === 'end') {
-                  clearTimeout(timeout);
-                  es.close();
+                  clearTimeout(timeout); es.close();
                   const ok = msg.status !== 'error';
-                  setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]: ok ? '✓ done' : '✗ '+(msg.error||'error')}}));
-                  if (ok) setCompletedJobs(prev=>({...prev,[p.id+'::'+modeId]: d.jobId}));
+                  setStatus(prev=>({...prev,[p.id]:{...prev[p.id],[modeId]: ok?'✓ done':'✗ '+(msg.error||'error')}}));
+                  if (ok) {
+                    // Store in LOCAL map (no React timing issues)
+                    doneJobs[p.id+'::'+modeId] = d.jobId;
+                    setCompletedJobs({...doneJobs});
+                  }
                   resolve(null);
                 }
               } catch {}
@@ -1167,6 +1172,22 @@ function CrossSearchForm({onJobStart}){
         }
       }
     }
+
+    // AUTO-PUSH all completed jobs to ticker once everything is done
+    const jobIds = Object.entries(doneJobs);
+    if (jobIds.length > 0) {
+      setMsg('⏳ Auto-pushing '+jobIds.length+' result set(s) to SIGINT ticker…');
+      let pushed = 0;
+      for (const [key, jid] of jobIds) {
+        try {
+          const pr = await API('/api/ticker/push',{method:'POST',body:JSON.stringify({jobId:jid,limit:crossLimit})});
+          const pd = await pr.json();
+          if (pd.ok) { pushed++; }
+        } catch {}
+      }
+      setMsg('✓ All done — '+pushed+'/'+jobIds.length+' platforms pushed to SIGINT ticker.');
+    }
+
     setRunning(false);
   };
 

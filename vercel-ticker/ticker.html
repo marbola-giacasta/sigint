@@ -399,6 +399,24 @@ body {
   #statusbar { font-size: 8px !important; gap: 8px !important; padding: 0 8px !important; }
   #statusbar .sep { display: none; }
 }
+
+/* ── Dual timestamp rows in DATE·TIME column ─────────────────────────────── */
+.ts-platform {
+  font-size: var(--fs-sm);
+  color: var(--ink3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+.ts-captured {
+  font-size: 9px;
+  color: var(--ink3);
+  opacity: 0.5;
+  white-space: nowrap;
+  margin-top: 2px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
 </style>
 </head>
 <body>
@@ -581,28 +599,67 @@ function dateToRel(d) {
 }
 
 function refreshTimestamps() {
-  document.querySelectorAll('.col-ts[data-ts]').forEach(el => {
-    const raw = el.dataset.ts;
-    // Refresh platform timestamp (first div child)
-    const platDiv = el.querySelector('div:first-child') || el;
-    if (raw && !raw.includes('-')) {
-      const d = relStrToDate(raw);
-      if (d) platDiv.textContent = dateToRel(d);
-    }
-    // Refresh "pushed X ago" (second div child — already live via capturedAgo on render)
-    // It updates naturally on next full re-render; no action needed here
+  // ts-platform: recalculate absolute date from stored raw string
+  document.querySelectorAll('.col-ts[data-ts] .ts-platform').forEach(el => {
+    const raw = el.closest('[data-ts]').dataset.ts;
+    const d   = resolveToDate(raw);
+    if (d) el.textContent = fmtDate(d);
   });
+  // ts-captured: update "captured Xm ago" using item's capturedAt
+  // These are re-rendered on every poll cycle so no action needed here
 }
 setInterval(refreshTimestamps, 60_000);
 
-// Format capturedAt (Unix ms) as a short "pushed Xm ago" label
+// Format capturedAt (Unix ms) as "pushed Xm ago"
 function capturedAgo(ms) {
   if (!ms) return '';
   const s = (Date.now() - ms) / 1000;
-  if (s < 60)   return 'pushed just now';
-  if (s < 3600) return 'pushed ' + Math.round(s/60)   + 'm ago';
-  if (s < 86400)return 'pushed ' + Math.round(s/3600) + 'h ago';
-  return 'pushed ' + Math.round(s/86400) + 'd ago';
+  if (s < 60)    return 'captured just now';
+  if (s < 3600)  return 'captured ' + Math.round(s/60)   + 'm ago';
+  if (s < 86400) return 'captured ' + Math.round(s/3600) + 'h ago';
+  return 'captured ' + Math.round(s/86400) + 'd ago';
+}
+
+/**
+ * Converts ANY timestamp format to an absolute Date object.
+ * Handles:
+ *   - ISO strings:      "2026-06-15T10:30:00Z"
+ *   - Date strings:     "2026-06-03"
+ *   - Relative strings: "3h ago", "5 days ago", "Streamed 2w ago", "4 months ago"
+ *   - Unix ms numbers:  1718445600000
+ */
+function resolveToDate(raw) {
+  if (!raw) return null;
+  // Already a number (unix ms)
+  if (typeof raw === 'number') return new Date(raw);
+  const s = String(raw).trim();
+  // ISO / date string — try direct parse first
+  const direct = new Date(s);
+  if (!isNaN(direct.getTime()) && s.length > 6) return direct;
+  // Relative string — strip prefixes like "Streamed", "Live", suffixes like "ago"
+  const clean = s.replace(/^(Streamed|Live|live)\s*/i, '').replace(/\s*ago$/i, '').trim();
+  // Match patterns: "3h", "5 hours", "2d", "4 days", "1w", "2 weeks", "3mo", "4 months", "1y", "2 years"
+  const m = clean.match(/^(\d+(?:\.\d+)?)\s*(s|sec|m(?:in)?|h(?:our)?|d(?:ay)?|w(?:eek)?|mo(?:nth)?|y(?:ear)?)s?$/i);
+  if (!m) return null;
+  const n    = parseFloat(m[1]);
+  const unit = m[2].toLowerCase();
+  let ms = 0;
+  if (unit.startsWith('s'))  ms = n * 1000;
+  else if (unit.startsWith('mi') || unit === 'm') ms = n * 60_000;
+  else if (unit.startsWith('h')) ms = n * 3_600_000;
+  else if (unit.startsWith('d')) ms = n * 86_400_000;
+  else if (unit.startsWith('w')) ms = n * 604_800_000;
+  else if (unit.startsWith('mo'))ms = n * 2_592_000_000;
+  else if (unit.startsWith('y')) ms = n * 31_536_000_000;
+  return ms ? new Date(Date.now() - ms) : null;
+}
+
+/** Format a Date as "YYYY-MM-DD HH:MM UTC" */
+function fmtDate(d) {
+  if (!d) return '';
+  const p = n => String(n).padStart(2,'0');
+  return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())
+    +' '+p(d.getUTCHours())+':'+p(d.getUTCMinutes());
 }
 
 // Convert relative strings like "3d ago", "2mo ago", "Streamed 5d ago" → seconds
@@ -769,8 +826,11 @@ function buildRow(item, platform, mode, isNew) {
       <span class="col-content-inner">${contentHtml}</span>
     </div>
     <div class="col-ts" data-ts="${escHtml(ts)}">
-    <div>${escHtml(ts)}</div>
-    ${item.capturedAt ? `<div style="font-size:9px;opacity:.55;margin-top:2px;white-space:nowrap">${capturedAgo(item.capturedAt)}</div>` : ''}
+    <div class="ts-platform" title="Published on platform">${(() => {
+      const d = resolveToDate(ts);
+      return d ? fmtDate(d) : escHtml(ts);
+    })()}</div>
+    ${item.capturedAt ? `<div class="ts-captured" title="Captured by SIGINT">${capturedAgo(item.capturedAt)}</div>` : ''}
   </div>
   `;
 
