@@ -833,7 +833,6 @@ function buildRow(item, platform, mode, isNew) {
   // 40 characters per second feels natural; min 6s prevents flash on very short text.
   // Constant visual speed: 8 characters per second, regardless of text length or screen width.
   // This is the ONLY correct approach — per-element duration = charCount / speed.
-  const charCount   = Math.max(content.length, 30);
   const charCount    = Math.max(content.length, 30);
   const SCROLL_SPEED = 8; // chars per second — all rows scroll at same visual speed
   const duration     = Math.max(12, Math.round(charCount / SCROLL_SPEED));
