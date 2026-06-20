@@ -216,6 +216,7 @@ body {
   letter-spacing: 0.02em;
   /* animation assigned per-element via JS so speed scales with text length */
   animation: ticker linear infinite;
+  animation-duration: var(--ticker-dur, 30s);
   padding-left: 100%;
 }
 @keyframes ticker {
@@ -755,9 +756,8 @@ function buildRow(item, platform, mode, isNew) {
 
   // Fixed scroll speed: all marquees move at the same px/s rate regardless of length.
   // 40 characters per second feels natural; min 6s prevents flash on very short text.
-  const CHARS_PER_SEC = 20;
-  const charCount = Math.max(content.length, 30);
-  const duration  = Math.max(10, charCount / CHARS_PER_SEC);
+  // Duration set globally via CSS --ticker-speed so ALL items scroll at same px/s rate
+  const duration = 30; // fixed 30s baseline — overridden by JS below
   const contentHighlighted = highlight(content);
   const contentHtml = url
     ? `<a class="col-content-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escHtml(url.slice(0,80))}">${contentHighlighted}</a>`
@@ -766,7 +766,7 @@ function buildRow(item, platform, mode, isNew) {
   row.innerHTML = `
     <div class="col-source" title="Click to expand full record">${highlight(author)}</div>
     <div class="col-content-wrap">
-      <span class="col-content-inner" style="animation-duration:${duration}s">${contentHtml}</span>
+      <span class="col-content-inner">${contentHtml}</span>
     </div>
     <div class="col-ts" data-ts="${escHtml(ts)}">
     <div>${escHtml(ts)}</div>
@@ -893,6 +893,9 @@ function renderFeed(data, isNew) {
   document.getElementById('last-update').textContent =
     'LAST UPDATE: ' + new Date(data.pushedAt).toUTCString().slice(0,25).toUpperCase();
   document.getElementById('status-msg').textContent = `LIVE · ${totalAll} RECORDS`;
+
+  // Re-calibrate speed after DOM is rebuilt
+  setTimeout(calibrateMarqueeSpeed, 50);
 }
 
 // ── Controls wiring ───────────────────────────────────────────────────────────
@@ -960,6 +963,24 @@ function escHtml(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// ── Uniform marquee speed ────────────────────────────────────────────────────
+// Measures the content column width and sets --ticker-dur so every row
+// scrolls at a constant 120px/second regardless of text length or column width.
+function calibrateMarqueeSpeed() {
+  const feed = document.getElementById('feed');
+  if (!feed) return;
+  // Sample the content column width from the first data row
+  const sampleRow = feed.querySelector('.col-content-wrap');
+  const colWidth  = sampleRow ? sampleRow.getBoundingClientRect().width : 800;
+  const PX_PER_SEC = 120;              // pixels per second — adjust for taste
+  const dur = Math.round(colWidth / PX_PER_SEC);
+  document.documentElement.style.setProperty('--ticker-dur', dur + 's');
+}
+window.addEventListener('load',   calibrateMarqueeSpeed);
+window.addEventListener('resize', calibrateMarqueeSpeed);
+// Also re-calibrate after data renders
+const _origRenderFeed = typeof renderFeed === 'function' ? renderFeed : null;
+
 </script>
 </body>
 </html>

@@ -216,6 +216,7 @@ body {
   letter-spacing: 0.02em;
   /* animation assigned per-element via JS so speed scales with text length */
   animation: ticker linear infinite;
+  animation-duration: var(--ticker-dur, 30s);
   padding-left: 100%;
 }
 @keyframes ticker {
@@ -232,6 +233,11 @@ body {
   letter-spacing: 0.04em;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 
@@ -370,7 +376,7 @@ body {
 .expand-value { color: var(--ink); line-height: 1.5; }
 .expand-marquee {
   overflow: hidden; white-space: nowrap;
-  animation: marquee-expand 20s linear infinite;
+  animation: marquee-expand 25s linear infinite;
   color: var(--ink2);
 }
 @keyframes marquee-expand { from { transform: translateX(0); } to { transform: translateX(-50%); } }
@@ -577,12 +583,27 @@ function dateToRel(d) {
 function refreshTimestamps() {
   document.querySelectorAll('.col-ts[data-ts]').forEach(el => {
     const raw = el.dataset.ts;
-    if (!raw || raw.includes('-')) return; // already absolute date, skip
-    const d = relStrToDate(raw);
-    if (d) el.textContent = dateToRel(d);
+    // Refresh platform timestamp (first div child)
+    const platDiv = el.querySelector('div:first-child') || el;
+    if (raw && !raw.includes('-')) {
+      const d = relStrToDate(raw);
+      if (d) platDiv.textContent = dateToRel(d);
+    }
+    // Refresh "pushed X ago" (second div child — already live via capturedAgo on render)
+    // It updates naturally on next full re-render; no action needed here
   });
 }
 setInterval(refreshTimestamps, 60_000);
+
+// Format capturedAt (Unix ms) as a short "pushed Xm ago" label
+function capturedAgo(ms) {
+  if (!ms) return '';
+  const s = (Date.now() - ms) / 1000;
+  if (s < 60)   return 'pushed just now';
+  if (s < 3600) return 'pushed ' + Math.round(s/60)   + 'm ago';
+  if (s < 86400)return 'pushed ' + Math.round(s/3600) + 'h ago';
+  return 'pushed ' + Math.round(s/86400) + 'd ago';
+}
 
 // Convert relative strings like "3d ago", "2mo ago", "Streamed 5d ago" → seconds
 function tsToSeconds(ts) {
@@ -733,8 +754,10 @@ function buildRow(item, platform, mode, isNew) {
   const row = document.createElement('div');
   row.className = 'data-row' + (isNew ? ' new-flash' : '');
 
-  const charCount = Math.max(content.length, 30);
-  const duration  = Math.max(8, charCount * 0.16);
+  // Fixed scroll speed: all marquees move at the same px/s rate regardless of length.
+  // 40 characters per second feels natural; min 6s prevents flash on very short text.
+  // Duration set globally via CSS --ticker-speed so ALL items scroll at same px/s rate
+  const duration = 30; // fixed 30s baseline — overridden by JS below
   const contentHighlighted = highlight(content);
   const contentHtml = url
     ? `<a class="col-content-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escHtml(url.slice(0,80))}">${contentHighlighted}</a>`
@@ -743,9 +766,12 @@ function buildRow(item, platform, mode, isNew) {
   row.innerHTML = `
     <div class="col-source" title="Click to expand full record">${highlight(author)}</div>
     <div class="col-content-wrap">
-      <span class="col-content-inner" style="animation-duration:${duration}s">${contentHtml}</span>
+      <span class="col-content-inner">${contentHtml}</span>
     </div>
-    <div class="col-ts" data-ts="${escHtml(ts)}">${escHtml(ts)}</div>
+    <div class="col-ts" data-ts="${escHtml(ts)}">
+    <div>${escHtml(ts)}</div>
+    ${item.capturedAt ? `<div style="font-size:9px;opacity:.55;margin-top:2px;white-space:nowrap">${capturedAgo(item.capturedAt)}</div>` : ''}
+  </div>
   `;
 
   // Build expand panel
@@ -867,6 +893,9 @@ function renderFeed(data, isNew) {
   document.getElementById('last-update').textContent =
     'LAST UPDATE: ' + new Date(data.pushedAt).toUTCString().slice(0,25).toUpperCase();
   document.getElementById('status-msg').textContent = `LIVE · ${totalAll} RECORDS`;
+
+  // Re-calibrate speed after DOM is rebuilt
+  setTimeout(calibrateMarqueeSpeed, 50);
 }
 
 // ── Controls wiring ───────────────────────────────────────────────────────────
@@ -934,6 +963,24 @@ function escHtml(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// ── Uniform marquee speed ────────────────────────────────────────────────────
+// Measures the content column width and sets --ticker-dur so every row
+// scrolls at a constant 120px/second regardless of text length or column width.
+function calibrateMarqueeSpeed() {
+  const feed = document.getElementById('feed');
+  if (!feed) return;
+  // Sample the content column width from the first data row
+  const sampleRow = feed.querySelector('.col-content-wrap');
+  const colWidth  = sampleRow ? sampleRow.getBoundingClientRect().width : 800;
+  const PX_PER_SEC = 120;              // pixels per second — adjust for taste
+  const dur = Math.round(colWidth / PX_PER_SEC);
+  document.documentElement.style.setProperty('--ticker-dur', dur + 's');
+}
+window.addEventListener('load',   calibrateMarqueeSpeed);
+window.addEventListener('resize', calibrateMarqueeSpeed);
+// Also re-calibrate after data renders
+const _origRenderFeed = typeof renderFeed === 'function' ? renderFeed : null;
+
 </script>
 </body>
 </html>
