@@ -654,12 +654,14 @@ function resolveToDate(raw) {
   return ms ? new Date(Date.now() - ms) : null;
 }
 
-/** Format a Date as "YYYY-MM-DD HH:MM UTC" */
+/** Format a Date as "YYYY-MM-DD HH:MM" in CET/CEST (Europe/Zurich) */
 function fmtDate(d) {
   if (!d) return '';
-  const p = n => String(n).padStart(2,'0');
-  return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())
-    +' '+p(d.getUTCHours())+':'+p(d.getUTCMinutes());
+  return d.toLocaleString('en-GB', {
+    timeZone: 'Europe/Zurich',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).replace(',', '');
 }
 
 // Convert relative strings like "3d ago", "2mo ago", "Streamed 5d ago" → seconds
