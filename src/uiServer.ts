@@ -1114,6 +1114,16 @@ app.post('/api/publish', (req: any, res: any): void => {
 // ── Ticker routes ─────────────────────────────────────────────────────────────
 
 /** GET /api/ticker/data — polled by the public ticker page every 3–5 seconds */
+/** DELETE /api/ticker/clear — wipe all ticker data from memory, disk and Supabase */
+app.post('/api/ticker/clear', (_req: any, res: any): void => {
+  tickerStore = null;
+  try { fs.writeFileSync(TICKER_FILE, JSON.stringify(null), 'utf-8'); } catch {}
+  // Also clear in Supabase
+  syncToSupabase({ pushedAt: Date.now(), sections: [] } as any);
+  origLog('  ✓  Ticker cleared — all sections wiped');
+  res.json({ ok: true });
+});
+
 app.get('/api/ticker/data', (_req: any, res: any): void => {
   if (!tickerStore) { res.status(204).end(); return; }
   res.json(tickerStore);

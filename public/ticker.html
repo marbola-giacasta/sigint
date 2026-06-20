@@ -370,7 +370,7 @@ body {
 .expand-value { color: var(--ink); line-height: 1.5; }
 .expand-marquee {
   overflow: hidden; white-space: nowrap;
-  animation: marquee-expand 20s linear infinite;
+  animation: marquee-expand 25s linear infinite;
   color: var(--ink2);
 }
 @keyframes marquee-expand { from { transform: translateX(0); } to { transform: translateX(-50%); } }
@@ -748,8 +748,11 @@ function buildRow(item, platform, mode, isNew) {
   const row = document.createElement('div');
   row.className = 'data-row' + (isNew ? ' new-flash' : '');
 
+  // Fixed scroll speed: all marquees move at the same px/s rate regardless of length.
+  // 40 characters per second feels natural; min 6s prevents flash on very short text.
+  const CHARS_PER_SEC = 40;
   const charCount = Math.max(content.length, 30);
-  const duration  = Math.max(8, charCount * 0.16);
+  const duration  = Math.max(6, charCount / CHARS_PER_SEC);
   const contentHighlighted = highlight(content);
   const contentHtml = url
     ? `<a class="col-content-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escHtml(url.slice(0,80))}">${contentHighlighted}</a>`

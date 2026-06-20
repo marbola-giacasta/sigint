@@ -1316,6 +1316,17 @@ function App(){
     setPush(false);
     setTimeout(()=>setTickerMsg(''),4000);
   };
+
+  const clearTicker = async () => {
+    if (!window.confirm('Clear ALL data from the SIGINT feed? This cannot be undone.')) return;
+    try {
+      const r = await API('/api/ticker/clear', {method:'POST'});
+      const d = await r.json();
+      if (d.ok) setTickerMsg('✓ Feed cleared — all sections wiped.');
+      else setTickerMsg('✗ Clear failed');
+    } catch(e) { setTickerMsg('✗ '+e.message); }
+  };
+
   return(
     <div className={`app${isMobile?' mobile':''}`}>
       <div className="topbar">
@@ -1334,6 +1345,7 @@ function App(){
             <button className="btn" style={{fontSize:11,background:'#1a2a1a',color:'#5dba5d',border:'1px solid #3a5a3a'}} onClick={pushToTicker} disabled={pushing}>
               {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:'📡 Push to Ticker'}
             </button>
+            <button title="Wipe all data from SIGINT feed" className="btn danger-btn" style={{fontSize:11,marginLeft:4,background:'#2a0a0a',border:'1px solid #6a1a1a',color:'#f06060'}} onClick={clearTicker}>🗑 Clear Feed</button>
             {tickerMsg&&<span style={{fontSize:10,color:tickerMsg.startsWith('✓')?'var(--green)':'var(--red)'}}>{tickerMsg}</span>}
             <a href="/ticker.html" target="_blank" style={{fontSize:10,color:'var(--text3)',textDecoration:'none',borderLeft:'1px solid var(--border)',paddingLeft:8}}>↗ VIEW TICKER</a>
           </div>}
