@@ -577,12 +577,27 @@ function dateToRel(d) {
 function refreshTimestamps() {
   document.querySelectorAll('.col-ts[data-ts]').forEach(el => {
     const raw = el.dataset.ts;
-    if (!raw || raw.includes('-')) return; // already absolute date, skip
-    const d = relStrToDate(raw);
-    if (d) el.textContent = dateToRel(d);
+    // Refresh platform timestamp (first div child)
+    const platDiv = el.querySelector('div:first-child') || el;
+    if (raw && !raw.includes('-')) {
+      const d = relStrToDate(raw);
+      if (d) platDiv.textContent = dateToRel(d);
+    }
+    // Refresh "pushed X ago" (second div child — already live via capturedAgo on render)
+    // It updates naturally on next full re-render; no action needed here
   });
 }
 setInterval(refreshTimestamps, 60_000);
+
+// Format capturedAt (Unix ms) as a short "pushed Xm ago" label
+function capturedAgo(ms) {
+  if (!ms) return '';
+  const s = (Date.now() - ms) / 1000;
+  if (s < 60)   return 'pushed just now';
+  if (s < 3600) return 'pushed ' + Math.round(s/60)   + 'm ago';
+  if (s < 86400)return 'pushed ' + Math.round(s/3600) + 'h ago';
+  return 'pushed ' + Math.round(s/86400) + 'd ago';
+}
 
 // Convert relative strings like "3d ago", "2mo ago", "Streamed 5d ago" → seconds
 function tsToSeconds(ts) {
@@ -745,7 +760,10 @@ function buildRow(item, platform, mode, isNew) {
     <div class="col-content-wrap">
       <span class="col-content-inner" style="animation-duration:${duration}s">${contentHtml}</span>
     </div>
-    <div class="col-ts" data-ts="${escHtml(ts)}">${escHtml(ts)}</div>
+    <div class="col-ts" data-ts="${escHtml(ts)}">
+    <div>${escHtml(ts)}</div>
+    ${item.capturedAt ? `<div style="font-size:9px;opacity:.55;margin-top:2px;white-space:nowrap">${capturedAgo(item.capturedAt)}</div>` : ''}
+  </div>
   `;
 
   // Build expand panel
