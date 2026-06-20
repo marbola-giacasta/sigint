@@ -344,14 +344,15 @@ body {
   /* Tighter rows on mobile */
   :root { --row-h: 34px; --fs: 7.5px; --fs-sm: 7px; }
   /* Grid: source=60px, content=1fr, timestamp=105px (wide enough for date+captured) */
-  .data-row    { grid-template-columns: 60px 1fr 105px; min-height: var(--row-h); height: auto; }
-  .col-header  { grid-template-columns: 60px 1fr 105px; }
+  .data-row    { grid-template-columns: 60px 1fr 125px; min-height: var(--row-h); height: auto; }
+  .col-header  { grid-template-columns: 60px 1fr 125px; }
   .section-header { grid-template-columns: 72px 1fr 90px; padding: 5px 10px 3px; }
   /* Source column */
   .col-source { padding: 0 4px 0 8px; font-size: 7.5px; }
-  /* Content/marquee: force small font, clip overflow */
-  .col-content-wrap { overflow: hidden; }
-  .col-content-inner { font-size: 7.5px !important; }
+  /* Content/marquee: uniform 7.5px on ALL rows */
+  .col-content-wrap  { overflow: hidden; font-size: 7.5px; }
+  .col-content-inner { font-size: 7.5px !important; letter-spacing: 0; }
+  .col-content-link  { font-size: 7.5px !important; }
   /* Timestamp column: stacked rows, no overflow into adjacent columns */
   .col-ts {
     padding: 0 8px 0 2px;
@@ -682,19 +683,23 @@ function resolveToDate(raw) {
 function fmtDateOrRaw(raw) {
   try {
     const d = resolveToDate(raw);
-    return d ? fmtDate(d) : String(raw || '');
+    return d ? fmtDate(d, isMobileView()) : String(raw || '');
   } catch(e) { return String(raw || ''); }
 }
 
-/** Format a Date as "YYYY-MM-DD HH:MM" in CET/CEST (Europe/Zurich) */
-function fmtDate(d) {
+/** Format a Date as "DD/MM/YYYY HH:MM" in CET/CEST (Europe/Zurich) */
+function fmtDate(d, short) {
   if (!d) return '';
-  return d.toLocaleString('en-GB', {
-    timeZone: 'Europe/Zurich',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false
-  }).replace(',', '');
+  const tz = { timeZone: 'Europe/Zurich', hour12: false };
+  if (short) {
+    // Mobile: "20/06 12:28" (omit year to save space)
+    return d.toLocaleString('en-GB', { ...tz, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).replace(',','');
+  }
+  return d.toLocaleString('en-GB', { ...tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).replace(',','');
 }
+
+/** Detect mobile viewport */
+function isMobileView() { return window.innerWidth <= 640; }
 
 // Convert relative strings like "3d ago", "2mo ago", "Streamed 5d ago" → seconds
 function tsToSeconds(ts) {
