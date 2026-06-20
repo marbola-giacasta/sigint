@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>SIGINT · ADMIN</title>
-<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -554,6 +554,49 @@ const RD_TIMES=['all','year','month','week','day','hour'];
 const X_FILTERS=[{label:'Latest (default)',value:null},{label:'Top tweets',value:'top'},{label:'Live',value:'live'}];
 
 // ── Browser Panel ─────────────────────────────────────────────────────────────
+// ── FileTextarea — labeled textarea with optional .txt/.xlsx file import ────
+function FileTextarea({label, placeholder, value, onChange}) {
+  const fileRef = React.useRef(null);
+
+  const loadFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      // Read Excel: first column of first sheet
+      const buf  = await file.arrayBuffer();
+      const wb   = XLSX.read(buf);
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      const vals = rows.map((r) => String(r[0] || '').trim()).filter(Boolean);
+      onChange(vals.join('\n'));
+    } else {
+      // Plain text
+      const text = await file.text();
+      onChange(text.trim());
+    }
+    e.target.value = '';
+  };
+
+  return (
+    <div className="field">
+      <div className="field-header">
+        <label>{label}</label>
+        <button className="btn btn-ghost" style={{fontSize:10,padding:'1px 6px'}}
+          onClick={()=>fileRef.current?.click()}>
+          📁 .txt / .xlsx
+        </button>
+        <input ref={fileRef} type="file" accept=".txt,.xlsx,.xls" style={{display:'none'}} onChange={loadFile}/>
+      </div>
+      <textarea placeholder={placeholder} value={value}
+        onChange={e=>onChange(e.target.value)}
+        style={{minHeight:72,resize:'vertical'}}/>
+      {value&&<div style={{fontSize:10,color:'var(--text3)',marginTop:2}}>
+        {value.trim().split('\n').filter(Boolean).length} item{value.trim().split('\n').filter(Boolean).length===1?'':'s'}
+      </div>}
+    </div>
+  );
+}
+
 function BrowserPanel(){
   const PLAT_LOGINS = [
     {id:'youtube',   label:'YouTube',   icon:'▶', color:'#ff4444', url:'https://accounts.google.com/signin'},
