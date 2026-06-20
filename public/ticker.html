@@ -441,6 +441,9 @@ body {
   <button class="sort-btn" data-sort="date-asc">DATE ↑</button>
   <button class="sort-btn" data-sort="source-asc">SOURCE A→Z</button>
   <button class="sort-btn" data-sort="content-asc">CONTENT A→Z</button>
+  <div class="ctrl-sep"></div>
+  <button class="sort-btn" data-sort="captured-desc">CAPTURED ↓</button>
+  <button class="sort-btn" data-sort="captured-asc">CAPTURED ↑</button>
 </div>
 
 <div id="date-filters" style="display:flex;gap:6px;padding:5px 20px;background:var(--paper);border-bottom:1px solid var(--rule);align-items:center;flex-wrap:wrap;font-size:9px;letter-spacing:.06em">
@@ -672,8 +675,8 @@ function resolveToDate(raw) {
 function fmtDateOrRaw(raw) {
   try {
     const d = resolveToDate(raw);
-    return d ? fmtDate(d) : escHtml(String(raw || ''));
-  } catch(e) { return escHtml(String(raw || '')); }
+    return d ? fmtDate(d) : String(raw || '');
+  } catch(e) { return String(raw || ''); }
 }
 
 /** Format a Date as "YYYY-MM-DD HH:MM" in CET/CEST (Europe/Zurich) */
@@ -708,6 +711,8 @@ function sortItems(items, platform, mode) {
     switch (sortMode) {
       case 'date-desc': return tsToSeconds(ac.ts) - tsToSeconds(bc.ts);
       case 'date-asc':  return tsToSeconds(bc.ts) - tsToSeconds(ac.ts);
+      case 'captured-desc': return (b.capturedAt||0) - (a.capturedAt||0);
+      case 'captured-asc':  return (a.capturedAt||0) - (b.capturedAt||0);
       case 'source-asc':  return ac.author.localeCompare(bc.author);
       case 'content-asc': return ac.content.localeCompare(bc.content);
       default: return 0;
