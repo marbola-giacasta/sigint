@@ -342,12 +342,27 @@ body {
   .ctrl-label { display: none; }  /* hide "SORT" label, keep buttons */
 
   /* Tighter rows on mobile */
-  :root { --row-h: 20px; --fs: 10.5px; --fs-sm: 9.5px; }
-  .col-source { padding: 0 6px 0 10px; font-size: 9px; }
-  .data-row { grid-template-columns: 85px 1fr 105px; }
-  .col-header { grid-template-columns: 85px 1fr 105px; }
-  .section-header { grid-template-columns: 100px 1fr 80px; padding: 5px 10px 3px; }
-  .col-ts { padding: 0 10px 0 4px; font-size: 9px; }
+  :root { --row-h: 32px; --fs: 8px; --fs-sm: 7.5px; }
+  .col-source { padding: 0 6px 0 10px; font-size: 8px; }
+  /* Content column: smaller font so marquee is readable */
+  .col-content-wrap { font-size: 8px; }
+  .col-content-inner { font-size: 8px; }
+  .data-row { grid-template-columns: 75px 1fr 88px; min-height: var(--row-h); height: auto; }
+  .col-header { grid-template-columns: 75px 1fr 88px; }
+  .section-header { grid-template-columns: 90px 1fr 75px; padding: 5px 10px 3px; }
+  /* Timestamps stacked vertically on mobile */
+  .col-ts {
+    padding: 0 6px 0 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    height: auto;
+    min-height: var(--row-h);
+  }
+  .ts-platform { font-size: 7.5px; white-space: nowrap; line-height: 1.2; }
+  .ts-captured { font-size: 6.5px; opacity: 0.5; white-space: nowrap; font-style: italic; line-height: 1.2; }
   #statusbar { font-size: 8px; padding: 0 10px; gap: 10px; height: 20px; }
 }
 
