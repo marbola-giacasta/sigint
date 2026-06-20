@@ -368,6 +368,8 @@ body {
   .ts-platform { font-size: 7.5px; white-space: nowrap; line-height: 1.3; color: var(--ink3); }
   .ts-captured { font-size: 6.5px; white-space: nowrap; font-style: italic; line-height: 1.3; opacity: 0.5; }
   #statusbar { font-size: 8px; padding: 0 10px; gap: 10px; height: 20px; }
+  /* Force uniform 7.5px on every element inside content column */
+  .col-content-wrap * { font-size: 7.5px !important; }
 }
 
 /* ── EXPANDABLE ROWS ─────────────────────────────────────────────────────── */
@@ -638,11 +640,14 @@ setInterval(refreshTimestamps, 60000);
 // Format capturedAt (Unix ms) as "pushed Xm ago"
 function capturedAgo(ms) {
   if (!ms) return '';
-  const s = (Date.now() - ms) / 1000;
-  if (s < 60)    return 'captured just now';
-  if (s < 3600)  return 'captured ' + Math.round(s/60)   + 'm ago';
-  if (s < 86400) return 'captured ' + Math.round(s/3600) + 'h ago';
-  return 'captured ' + Math.round(s/86400) + 'd ago';
+  const s    = (Date.now() - ms) / 1000;
+  const mob  = window.innerWidth <= 640;
+  const pfx  = mob ? 'cap ' : 'captured ';
+  const sfx  = mob ? '' : ' ago';
+  if (s < 60)    return mob ? 'cap now'  : 'captured just now';
+  if (s < 3600)  return pfx + Math.round(s/60)   + 'm' + sfx;
+  if (s < 86400) return pfx + Math.round(s/3600) + 'h' + sfx;
+  return pfx + Math.round(s/86400) + 'd' + sfx;
 }
 
 /**
