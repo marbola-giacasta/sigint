@@ -1082,6 +1082,7 @@ function CrossSearchForm({onJobStart}){
   const [status,        setStatus]       = useState({});
   const [completedJobs, setCompletedJobs] = useState({});
   const [crossLimit,    setCrossLimit]    = useState(20);
+  const [msg,           setMsg]           = useState('');
 
   const togglePlat = id => setSel(p=>({...p,[id]:!p[id]}));
   const toggleMode = (platId, modeId) => setSelModes(prev => {
@@ -1300,6 +1301,11 @@ function CrossSearchForm({onJobStart}){
           {running?<><span className="spinner"/>&nbsp;Cross-searching…</>:'✦ Run Cross-Search'}
         </button>
 
+        {msg&&<div style={{marginTop:8,fontSize:11,padding:'6px 10px',borderRadius:5,lineHeight:1.5,
+          background:msg.startsWith('✓')?'#0d1a0d':msg.startsWith('✗')?'#1a0808':'#1a1400',
+          color:msg.startsWith('✓')?'var(--green)':msg.startsWith('✗')?'var(--red)':'#d4a030',
+          border:'1px solid '+(msg.startsWith('✓')?'#2a5a2a':msg.startsWith('✗')?'#5a1a1a':'#5a4a00')
+        }}>{msg}</div>}
         {Object.keys(completedJobs).length>0&&<>
           <div style={{display:'flex',gap:6,alignItems:'center',marginTop:10}}>
             <div style={{fontSize:10,color:'var(--text3)'}}>Push limit</div>
