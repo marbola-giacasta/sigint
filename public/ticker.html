@@ -440,7 +440,163 @@ body {
   .ts-platform { font-size: 9px; }
   .ts-captured { font-size: 7.5px; }
 }
+
+/* ── Charts panel ────────────────────────────────────────────────── */
+/* ── SIGINT Design tokens (matches ticker.html) ─────────────────────────── */
+
+
+
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+#masthead {
+  background: var(--paper);
+  border-bottom: 2px solid var(--accent);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.back-link {
+  font-size: var(--fs-sm);
+  color: var(--ink3);
+  text-decoration: none;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  padding: 3px 10px;
+  border-radius: var(--r);
+  transition: all .15s;
+}
+.back-link:hover { color: var(--ink); border-color: var(--ink3); }
+#masthead-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+#masthead-sub {
+  font-size: var(--fs-sm);
+  color: var(--ink3);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+#masthead-clock {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  color: var(--ink3);
+  letter-spacing: .06em;
+}
+#loading-banner {
+  text-align: center;
+  padding: 40px;
+  font-size: var(--fs-sm);
+  color: var(--ink3);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+/* ── Red top stripe ─────────────────────────────────────────────────────── */
+#stripe {
+  background: var(--accent);
+  color: #fff;
+  font-size: 8px;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── Charts grid ─────────────────────────────────────────────────────────── */
+#charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Individual chart card ───────────────────────────────────────────────── */
+.chart-card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.chart-card-header {
+  padding: 8px 14px 6px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.chart-card-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.chart-card-sub {
+  font-size: 8px;
+  color: var(--ink3);
+  letter-spacing: .08em;
+}
+.chart-card-body {
+  padding: 12px;
+  position: relative;
+  min-height: 200px;
+}
+.chart-card.wide {
+  grid-column: 1 / -1;
+}
+
+/* ── Platform pill ───────────────────────────────────────────────────────── */
+.plat-pill {
+  display: inline-block;
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  padding: 1px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+.p-yt { color: var(--c-yt); border-color: var(--c-yt); }
+.p-rd { color: var(--c-rd); border-color: var(--c-rd); }
+.p-ig { color: var(--c-ig); border-color: var(--c-ig); }
+.p-x  { color: var(--c-x);  border-color: var(--c-x);  }
+.p-li { color: var(--c-li); border-color: var(--c-li); }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #charts-grid { grid-template-columns: 1fr; padding: 10px; gap: 12px; }
+  .chart-card.wide { grid-column: 1; }
+  #masthead { padding: 8px 12px; }
+  #masthead-title { font-size: 13px; }
+}
+
+/* ── No data state ───────────────────────────────────────────────────────── */
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  font-size: var(--fs-sm);
+  color: var(--ink3);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+/* Mobile charts */
+@media(max-width:640px){#charts-grid{grid-template-columns:1fr!important;padding:10px!important}.chart-card.wide{grid-column:1!important}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -450,7 +606,7 @@ body {
   <span id="masthead-title">SIGINT·FEED</span>
   <span id="masthead-sub">AGGREGATOR</span>
   <span id="masthead-clock" id="clock">——</span>
-  <a href="/charts.html" style="margin-left:12px;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);text-decoration:none;border:1px solid var(--rule);padding:3px 10px;border-radius:3px;font-family:var(--mono);transition:all .15s" onmouseover="this.style.color='var(--ink)';this.style.borderColor='var(--ink3)'" onmouseout="this.style.color='var(--ink3)';this.style.borderColor='var(--rule)'">📊 CHARTS</a>
+  <a href="#" onclick="openCharts();return false;" style="margin-left:12px;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);text-decoration:none;border:1px solid var(--rule);padding:3px 10px;border-radius:3px;font-family:var(--mono);transition:all .15s" onmouseover="this.style.color='var(--ink)';this.style.borderColor='var(--ink3)'" onmouseout="this.style.color='var(--ink3)';this.style.borderColor='var(--rule)'">📊 CHARTS</a>
 </div>
 
 <div id="controls">
@@ -1071,6 +1227,399 @@ function escHtml(s) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+
+
+// ── Charts panel toggle ────────────────────────────────────────────────────
+function openCharts() {
+  const overlay = document.getElementById('charts-overlay');
+  overlay.style.display = 'block';
+  // Render from current data if available, otherwise from Supabase
+  if (window._chartsRendered) return;
+  if (currentData) {
+    buildChartsFromStore(currentData);
+  } else {
+    fetch(`${SUPABASE_URL}/rest/v1/ticker_store?id=eq.1&select=data,updated_at`,
+      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then(r => r.json())
+      .then(rows => { if (rows[0]?.data) buildChartsFromStore(rows[0].data); })
+      .catch(e => { document.getElementById('charts-loading').textContent = 'ERROR: ' + e.message; });
+  }
+}
+function closeCharts() {
+  document.getElementById('charts-overlay').style.display = 'none';
+}
+
+// ── Supabase credentials (same as ticker.html) ────────────────────────────
+
+// ── Platform config ───────────────────────────────────────────────────────
+const PLAT = {
+  youtube:   { label:'YouTube',   color:'#cc0000', alpha:'rgba(204,0,0,0.75)',     pill:'p-yt' },
+  reddit:    { label:'Reddit',    color:'#ff4500', alpha:'rgba(255,69,0,0.75)',     pill:'p-rd' },
+  instagram: { label:'Instagram', color:'#c13584', alpha:'rgba(193,53,132,0.75)',   pill:'p-ig' },
+  x:         { label:'X/Twitter', color:'#1d9bf0', alpha:'rgba(29,155,240,0.75)',   pill:'p-x'  },
+  linkedin:  { label:'LinkedIn',  color:'#0077b5', alpha:'rgba(0,119,181,0.75)',    pill:'p-li' },
+};
+const PLAT_ORDER = ['youtube','reddit','instagram','x','linkedin'];
+
+// ── Chart.js global defaults — SIGINT mono style ──────────────────────────
+Chart.defaults.font.family = "'Courier Prime', 'Courier New', monospace";
+Chart.defaults.font.size   = 9;
+Chart.defaults.color       = '#8a8578';
+Chart.defaults.borderColor = '#d4cfba';
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.padding  = 10;
+
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+const fmt = n => Number(n) ? Number(n).toLocaleString() : (n || '—');
+const truncate = (s, n) => s && s.length > n ? s.slice(0, n) + '…' : (s || '');
+
+function parseNum(s) {
+  if (!s) return 0;
+  const c = String(s).replace(/,/g, '').toUpperCase();
+  if (c.endsWith('K')) return parseFloat(c) * 1000;
+  if (c.endsWith('M')) return parseFloat(c) * 1000000;
+  return parseFloat(c) || 0;
+}
+
+// ── Card builder ──────────────────────────────────────────────────────────
+function makeCard(title, sub, platform, wide) {
+  const card = document.createElement('div');
+  card.className = 'chart-card' + (wide ? ' wide' : '');
+
+  const p = PLAT[platform] || {};
+  const pill = platform
+    ? `<span class="plat-pill ${p.pill||''}">${p.label||platform}</span>`
+    : '';
+
+  card.innerHTML = `
+    <div class="chart-card-header">
+      ${pill}
+      <span class="chart-card-title">${title}</span>
+      <span class="chart-card-sub">${sub}</span>
+    </div>
+    <div class="chart-card-body">
+      <canvas></canvas>
+    </div>`;
+
+  return { card, canvas: card.querySelector('canvas') };
+}
+
+function noData(canvas) {
+  canvas.style.display = 'none';
+  const nd = document.createElement('div');
+  nd.className = 'no-data';
+  nd.textContent = 'NO DATA';
+  canvas.parentElement.appendChild(nd);
+}
+
+// ── Chart factories ───────────────────────────────────────────────────────
+
+/** Horizontal bar — top N items by a numeric field */
+function hbar(canvas, labels, values, color, labelFmt) {
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: color, borderRadius: 2, barPercentage: .75 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          grid: { color: '#e8e4d8' },
+          ticks: { callback: v => labelFmt ? labelFmt(v) : v }
+        },
+        y: { grid: { display: false }, ticks: { font: { size: 8 } } }
+      }
+    }
+  });
+}
+
+/** Doughnut chart */
+function donut(canvas, labels, values, colors) {
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#f5f2e8' }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 8 }, boxWidth: 10, padding: 8 }
+        }
+      }
+    }
+  });
+}
+
+/** Line chart for timeline */
+function timeline(canvas, labels, datasets) {
+  new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { font: { size: 8 } } } },
+      scales: {
+        x: { grid: { color: '#e8e4d8' }, ticks: { font: { size: 7.5 }, maxTicksLimit: 8 } },
+        y: { grid: { color: '#e8e4d8' }, ticks: { font: { size: 8 } } }
+      }
+    }
+  });
+}
+
+// ── Chart renderers per platform ──────────────────────────────────────────
+
+function renderOverview(grid, store) {
+  const counts = {}, totals = {};
+  PLAT_ORDER.forEach(p => { counts[p] = 0; });
+  store.sections.forEach(s => {
+    counts[s.platform] = (counts[s.platform] || 0) + s.items.length;
+  });
+
+  const labels = PLAT_ORDER.filter(p => counts[p] > 0).map(p => PLAT[p].label);
+  const values = PLAT_ORDER.filter(p => counts[p] > 0).map(p => counts[p]);
+  const colors = PLAT_ORDER.filter(p => counts[p] > 0).map(p => PLAT[p].color);
+
+  const { card, canvas } = makeCard('RECORDS PER PLATFORM', 'all sources', null, false);
+  grid.appendChild(card);
+  if (!values.length) { noData(canvas); return; }
+  donut(canvas, labels, values, colors);
+}
+
+function renderYouTube(grid, items) {
+  if (!items.length) return;
+
+  // Top 10 by views
+  const sorted = [...items]
+    .filter(i => i.viewCount)
+    .sort((a,b) => parseNum(b.viewCount) - parseNum(a.viewCount))
+    .slice(0, 10);
+
+  if (sorted.length) {
+    const { card, canvas } = makeCard('TOP VIDEOS BY VIEWS', 'top 10', 'youtube');
+    grid.appendChild(card);
+    hbar(
+      canvas,
+      sorted.map(i => truncate(i.title || i.channelName || 'Unknown', 35)),
+      sorted.map(i => parseNum(i.viewCount)),
+      PLAT.youtube.alpha,
+      v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v
+    );
+  }
+
+  // Views by channel (top 8)
+  const byChannel = {};
+  items.forEach(i => {
+    const ch = i.channelName || i.author || 'Unknown';
+    byChannel[ch] = (byChannel[ch] || 0) + parseNum(i.viewCount);
+  });
+  const topCh = Object.entries(byChannel).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  if (topCh.length > 1) {
+    const { card, canvas } = makeCard('VIEWS BY CHANNEL', 'top 8', 'youtube');
+    grid.appendChild(card);
+    donut(canvas,
+      topCh.map(([k])=>truncate(k,22)),
+      topCh.map(([,v])=>v),
+      topCh.map((_,i)=> `hsl(${0 + i*15},${70-i*3}%,${40+i*3}%)`)
+    );
+  }
+}
+
+function renderReddit(grid, items) {
+  if (!items.length) return;
+
+  // Top 10 by score
+  const byScore = [...items]
+    .filter(i => i.score != null)
+    .sort((a,b) => parseNum(b.score) - parseNum(a.score))
+    .slice(0, 10);
+
+  if (byScore.length) {
+    const { card, canvas } = makeCard('TOP POSTS BY SCORE', 'top 10', 'reddit');
+    grid.appendChild(card);
+    hbar(
+      canvas,
+      byScore.map(i => truncate(i.title || i.text || 'Post', 38)),
+      byScore.map(i => parseNum(i.score)),
+      PLAT.reddit.alpha
+    );
+  }
+
+  // Posts by subreddit
+  const bySub = {};
+  items.forEach(i => {
+    const s = i.subreddit || i.sub || 'other';
+    bySub[s] = (bySub[s]||0) + 1;
+  });
+  const subEntries = Object.entries(bySub).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  if (subEntries.length > 1) {
+    const { card, canvas } = makeCard('POSTS BY SUBREDDIT', 'distribution', 'reddit');
+    grid.appendChild(card);
+    hbar(
+      canvas,
+      subEntries.map(([k])=> 'r/' + k),
+      subEntries.map(([,v])=>v),
+      PLAT.reddit.alpha
+    );
+  }
+
+  // Comments distribution
+  const withComments = items.filter(i => i.numComments != null).slice(0, 12);
+  if (withComments.length > 2) {
+    const { card, canvas } = makeCard('COMMENTS PER POST', 'sample', 'reddit');
+    grid.appendChild(card);
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: withComments.map(i => truncate(i.title || 'Post', 25)),
+        datasets: [{
+          label: 'Comments',
+          data: withComments.map(i => parseNum(i.numComments)),
+          backgroundColor: PLAT.reddit.alpha,
+          borderRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 7 }, maxRotation: 45 } },
+          y: { grid: { color: '#e8e4d8' } }
+        }
+      }
+    });
+  }
+}
+
+function renderInstagram(grid, items) {
+  if (!items.length) return;
+
+  const withLikes = items.filter(i => i.likes && i.likes !== '?').slice(0, 10);
+  if (withLikes.length) {
+    const { card, canvas } = makeCard('TOP POSTS BY LIKES', 'top 10', 'instagram');
+    grid.appendChild(card);
+    hbar(
+      canvas,
+      withLikes.map(i => '@' + (i.username || i.author || 'unknown')),
+      withLikes.map(i => parseNum(i.likes)),
+      PLAT.instagram.alpha
+    );
+  }
+}
+
+function renderX(grid, items) {
+  if (!items.length) return;
+
+  const withLikes = [...items]
+    .filter(i => i.likes != null)
+    .sort((a,b) => parseNum(b.likes) - parseNum(a.likes))
+    .slice(0, 10);
+
+  if (withLikes.length) {
+    const { card, canvas } = makeCard('TOP TWEETS BY LIKES', 'top 10', 'x');
+    grid.appendChild(card);
+    hbar(
+      canvas,
+      withLikes.map(i => truncate(i.text || i.content || i.author || 'Tweet', 38)),
+      withLikes.map(i => parseNum(i.likes)),
+      PLAT.x.alpha
+    );
+  }
+}
+
+function renderLinkedIn(grid, items) {
+  if (!items.length) return;
+
+  // Jobs: by type
+  const byType = {};
+  items.filter(i => i.jobType).forEach(i => {
+    byType[i.jobType] = (byType[i.jobType]||0) + 1;
+  });
+  if (Object.keys(byType).length > 1) {
+    const entries = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const { card, canvas } = makeCard('JOB TYPES', 'distribution', 'linkedin');
+    grid.appendChild(card);
+    donut(
+      canvas,
+      entries.map(([k])=>k),
+      entries.map(([,v])=>v),
+      entries.map((_,i)=>`hsl(${200+i*12},${60-i*3}%,${35+i*4}%)`)
+    );
+  }
+
+  // Feed posts: by engagement
+  const withLikes = items
+    .filter(i => i.likes && !i.jobType)
+    .sort((a,b) => parseNum(b.likes) - parseNum(a.likes))
+    .slice(0, 8);
+
+  if (withLikes.length) {
+    const { card, canvas } = makeCard('FEED POSTS BY REACTIONS', 'top 8', 'linkedin');
+    grid.appendChild(card);
+    hbar(
+      canvas,
+      withLikes.map(i => truncate(i.author || 'Unknown', 30)),
+      withLikes.map(i => parseNum(i.likes)),
+      PLAT.linkedin.alpha
+    );
+  }
+}
+
+// ── Main render ───────────────────────────────────────────────────────────
+async function buildChartsFromStore(store) {
+  const grid = document.getElementById('charts-grid');
+  grid.innerHTML = '';
+
+  if (!store || !store.sections || !store.sections.length) {
+    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink3);letter-spacing:.1em">NO DATA IN FEED — PUSH SOME RESULTS FROM THE ADMIN UI FIRST</div>';
+    grid.style.display = 'block';
+    document.getElementById('charts-loading').style.display = 'none';
+    return;
+  }
+
+  // Overview donut (always shown first)
+  renderOverview(grid, store);
+
+  // Per-platform sections
+  const byPlatform = {};
+  store.sections.forEach(s => {
+    if (!byPlatform[s.platform]) byPlatform[s.platform] = [];
+    byPlatform[s.platform].push(...s.items);
+  });
+
+  if (byPlatform.youtube)   renderYouTube(grid,    byPlatform.youtube);
+  if (byPlatform.reddit)    renderReddit(grid,     byPlatform.reddit);
+  if (byPlatform.instagram) renderInstagram(grid,  byPlatform.instagram);
+  if (byPlatform.x)         renderX(grid,          byPlatform.x);
+  if (byPlatform.linkedin)  renderLinkedIn(grid,   byPlatform.linkedin);
+
+  grid.style.display = 'grid';
+  window._chartsRendered = true;
+  document.getElementById('charts-overlay-status').textContent = new Date().toUTCString().slice(0,17).toUpperCase();
+  document.getElementById('charts-loading').style.display = 'none';
+}
+
 </script>
+
+<!-- ── Charts Panel ──────────────────────────────────────────────────── -->
+<div id="charts-overlay" style="display:none;position:fixed;inset:0;background:var(--paper);z-index:100;overflow-y:auto;font-family:var(--mono)">
+  <div id="charts-overlay-header" style="position:sticky;top:0;background:var(--paper);border-bottom:2px solid var(--accent);padding:8px 20px;display:flex;align-items:center;gap:12px;z-index:101">
+    <button onclick="closeCharts()" style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);background:transparent;border:1px solid var(--rule);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--mono)">← FEED</button>
+    <span style="font-size:14px;font-weight:700;letter-spacing:.12em">SIGINT·CHARTS</span>
+    <span style="font-size:9px;color:var(--ink3);letter-spacing:.08em">| ANALYTICS</span>
+    <span id="charts-overlay-status" style="margin-left:auto;font-size:9px;color:var(--ink3);letter-spacing:.06em">LOADING…</span>
+  </div>
+  <div id="charts-loading" style="text-align:center;padding:60px;font-size:9px;letter-spacing:.15em;color:var(--ink3);text-transform:uppercase">⏳ BUILDING CHARTS…</div>
+  <div id="charts-grid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;padding:20px;max-width:1400px;margin:0 auto"></div>
+</div>
 </body>
 </html>
