@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SIGINT · NEWS FEED</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --paper:#f5f2e8; --bg:#edeae0; --bg2:#e5e2d8; --rule:#d4cfba;
+  --ink:#1a1814; --ink2:#3a3630; --ink3:#8a8578;
+  --accent:#8b1a1a; --accent2:#004680;
+  --mono:'Courier Prime','Courier New',monospace;
+  --fs:10.5px; --fs-sm:9px; --row-h:28px;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; background:var(--paper); color:var(--ink); font-family:var(--mono); font-size:var(--fs); display:flex; flex-direction:column; }
+
+/* ── Stripe ─────────────────────────────────────────────── */
+#stripe { background:var(--accent); color:#fff; font-size:7.5px; letter-spacing:.3em; text-transform:uppercase; text-align:center; padding:4px 0; }
+
+/* ── Masthead ───────────────────────────────────────────── */
+#masthead { background:var(--paper); border-bottom:2px solid var(--accent); padding:8px 20px; display:flex; align-items:center; gap:12px; }
+#masthead-title { font-size:18px; font-weight:700; letter-spacing:.12em; }
+#masthead-sep { color:var(--ink3); }
+#masthead-sub { font-size:10px; color:var(--ink3); letter-spacing:.1em; text-transform:uppercase; }
+#masthead-clock { margin-left:auto; font-size:var(--fs-sm); color:var(--ink3); }
+
+/* ── Controls ───────────────────────────────────────────── */
+#controls { background:var(--bg); border-bottom:1px solid var(--rule); padding:6px 20px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ctrl-label { font-size:8px; color:var(--ink3); letter-spacing:.1em; text-transform:uppercase; }
+#search-input { background:transparent; border:none; border-bottom:1px solid var(--rule); padding:2px 6px; font-family:var(--mono); font-size:var(--fs-sm); color:var(--ink); outline:none; width:180px; }
+.ctrl-sep { width:1px; height:14px; background:var(--rule); margin:0 4px; }
+.sort-btn { font-family:var(--mono); font-size:var(--fs-sm); background:none; border:1px solid var(--rule); color:var(--ink2); padding:2px 8px; cursor:pointer; letter-spacing:.06em; }
+.sort-btn.active { border-color:var(--accent2); color:var(--accent2); background:rgba(0,70,139,.06); }
+
+/* ── Filter row ─────────────────────────────────────────── */
+#filter-row { background:var(--bg); border-bottom:1px solid var(--rule); padding:5px 20px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:9px; }
+.filter-select { font-family:var(--mono); font-size:8.5px; padding:2px 5px; background:var(--paper); border:1px solid var(--rule); color:var(--ink); border-radius:2px; max-width:140px; }
+.filter-label { font-size:8px; color:var(--ink3); letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+#filter-clear { font-family:var(--mono); font-size:8px; padding:2px 7px; background:transparent; border:1px solid var(--rule); color:var(--ink3); cursor:pointer; }
+
+/* ── Feed container ─────────────────────────────────────── */
+#feed { flex:1; overflow-y:auto; }
+#status-bar { background:var(--bg); border-top:1px solid var(--rule); padding:4px 20px; display:flex; align-items:center; gap:16px; font-size:8px; color:var(--ink3); letter-spacing:.08em; text-transform:uppercase; }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--ink3); }
+.dot-live { background:#2a9a2a; }
+
+/* ── Section ────────────────────────────────────────────── */
+.section-wrap { border-bottom:2px solid var(--rule); }
+.section-header { display:grid; grid-template-columns:140px 1fr 120px; align-items:center; padding:5px 20px 3px; background:var(--bg); border-bottom:1px solid var(--rule); }
+.section-badge { font-size:8px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); padding:1px 6px; border-radius:2px; display:inline-block; }
+.section-desc { font-size:8px; letter-spacing:.12em; color:var(--ink3); text-transform:uppercase; }
+.section-count { font-size:8px; letter-spacing:.1em; color:var(--ink3); text-align:right; }
+.col-header { display:grid; grid-template-columns:140px 1fr 120px; padding:2px 20px; border-bottom:1px solid var(--rule); background:var(--paper); }
+.col-header span { font-size:8px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink3); }
+.col-header span:last-child { text-align:right; display:block; }
+.col-header span:nth-child(2) { text-align:center; display:block; }
+
+/* ── Data rows ──────────────────────────────────────────── */
+.data-row { display:grid; grid-template-columns:140px 1fr 120px; min-height:var(--row-h); border-bottom:1px solid var(--rule); align-items:center; cursor:pointer; transition:background .1s; }
+.data-row:hover { background:var(--bg); }
+.data-row.new-flash { animation:flash-in 1.2s ease-out; }
+@keyframes flash-in { 0%{background:#fff8e0} 100%{background:transparent} }
+
+/* ── Source col (left) ──────────────────────────────────── */
+.col-source { padding:0 8px 0 20px; font-size:8.5px; font-weight:700; letter-spacing:.06em; color:var(--ink2); text-transform:uppercase; overflow:hidden; }
+.col-outlet { font-size:7.5px; color:var(--ink3); margin-top:1px; font-weight:400; text-transform:none; letter-spacing:.02em; }
+
+/* ── Marquee col (center) ───────────────────────────────── */
+.col-content-wrap { overflow:hidden; white-space:nowrap; }
+.col-content-inner { display:inline-block; white-space:nowrap; font-size:var(--fs); color:var(--ink); letter-spacing:.02em; animation:ticker linear infinite; padding-left:100%; }
+@keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+a.col-content-link { color:inherit; text-decoration:none; }
+a.col-content-link:hover { color:var(--accent); }
+
+/* ── Timestamp col (right) ──────────────────────────────── */
+.col-ts { padding:0 20px 0 8px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:2px; }
+.ts-country { font-size:8.5px; color:var(--ink2); letter-spacing:.06em; font-weight:700; white-space:nowrap; }
+.ts-lang { font-size:7.5px; color:var(--ink3); white-space:nowrap; font-style:italic; }
+.ts-date { font-size:7px; color:var(--ink3); white-space:nowrap; opacity:.6; }
+
+/* ── Expand panel ───────────────────────────────────────── */
+.expand-panel { display:none; background:#fdf9f0; border-top:1px solid var(--rule); padding:10px 20px 12px; font-size:9px; }
+.data-row.expanded + .expand-panel { display:block; }
+.expand-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px 16px; }
+.expand-field { display:flex; flex-direction:column; gap:2px; }
+.expand-key { font-size:7.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink3); }
+.expand-val { font-size:9px; color:var(--ink); word-break:break-word; }
+.expand-val a { color:var(--accent2); }
+.expand-headline { margin-top:8px; padding-top:8px; border-top:1px solid var(--rule); font-size:10px; color:var(--ink); line-height:1.5; }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media(max-width:640px){
+  :root { --row-h:36px; --fs:7.5px; --fs-sm:7px; }
+  .section-header,.col-header,.data-row { grid-template-columns:70px 1fr 80px; }
+  .col-source { padding:0 4px 0 10px; font-size:7px; }
+  .col-ts { padding:0 8px 0 2px; }
+  .ts-country { font-size:7px; }
+  .ts-lang { font-size:6px; }
+  .col-content-inner { font-size:7.5px !important; }
+  #masthead-title { font-size:14px; }
+  #controls,#filter-row { padding:5px 10px; }
+  #search-input { width:120px; }
+  .expand-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="stripe">SIGINT · NEWS FEED · OPEN SOURCE INTELLIGENCE · FOR AUTHORISED MONITORING USE ONLY</div>
+
+<div id="masthead">
+  <span id="masthead-title">SIGINT·NEWS</span>
+  <span id="masthead-sep">|</span>
+  <span id="masthead-sub">NEWS FEED</span>
+  <span id="masthead-clock"></span>
+</div>
+
+<div id="controls">
+  <span class="ctrl-label">🔍</span>
+  <input id="search-input" type="text" placeholder="FILTER RECORDS…" autocomplete="off" spellcheck="false"/>
+  <span id="search-count"></span>
+  <div class="ctrl-sep"></div>
+  <span class="ctrl-label">SORT</span>
+  <button class="sort-btn active" data-sort="country-asc">COUNTRY A→Z</button>
+  <button class="sort-btn" data-sort="country-desc">COUNTRY Z→A</button>
+  <button class="sort-btn" data-sort="scraped-desc">SCRAPED ↓</button>
+  <button class="sort-btn" data-sort="scraped-asc">SCRAPED ↑</button>
+  <button class="sort-btn" data-sort="outlet-asc">OUTLET A→Z</button>
+</div>
+
+<div id="filter-row">
+  <span class="filter-label">Filter</span>
+  <span class="filter-label">Category</span>
+  <select id="f-category" class="filter-select" onchange="applyFilters()"><option value="">All</option></select>
+  <span class="filter-label">Country</span>
+  <select id="f-country" class="filter-select" onchange="applyFilters()"><option value="">All</option></select>
+  <span class="filter-label">Region</span>
+  <select id="f-region" class="filter-select" onchange="applyFilters()"><option value="">All</option></select>
+  <span class="filter-label">Language</span>
+  <select id="f-language" class="filter-select" onchange="applyFilters()"><option value="">All</option></select>
+  <span class="filter-label">Outlet</span>
+  <select id="f-outlet" class="filter-select" onchange="applyFilters()"><option value="">All</option></select>
+  <button id="filter-clear" onclick="clearAllFilters()">✕ Clear</button>
+</div>
+
+<div id="feed"></div>
+
+<div id="status-bar">
+  <div class="dot dot-live" id="status-dot"></div>
+  <span>SIGINT·NEWS</span>
+  <div class="ctrl-sep"></div>
+  <span>RECORDS: <b id="sb-count">0</b></span>
+  <div class="ctrl-sep"></div>
+  <span>LAST UPDATE: <span id="sb-update">—</span></span>
+  <div class="ctrl-sep"></div>
+  <span id="sb-live">AWAITING TRANSMISSION</span>
+</div>
+
+<script>
+// ── Supabase ────────────────────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://qqmidswgsqmimxrlyqru.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbWlkc3dnc3FtaW14cmx5cXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTU3MTgsImV4cCI6MjA5NTIzMTcxOH0.UDgz4TfVM7t4jLNA-IKB8C1SVhuJj_jKXac6PApo544';
+
+// ── State ───────────────────────────────────────────────────────────────────
+let allRows    = [];
+let sortMode   = 'country-asc';
+let searchQ    = '';
+let lastUpdate = null;
+
+// ── Clock ───────────────────────────────────────────────────────────────────
+function tickClock() {
+  document.getElementById('masthead-clock').textContent =
+    new Date().toUTCString().slice(0,25).toUpperCase() + ' UTC';
+}
+tickClock(); setInterval(tickClock, 1000);
+
+// ── Escape HTML ─────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Populate filter dropdowns ────────────────────────────────────────────────
+function populateFilters(rows) {
+  const cols = { 'f-category':'Category','f-country':'Country','f-region':'Region','f-language':'Language','f-outlet':'Outlet' };
+  Object.entries(cols).forEach(([id,key]) => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    const vals = [...new Set(rows.map(r=>r[key]).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">All</option>' + vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if (vals.includes(cur)) sel.value = cur;
+  });
+}
+
+function applyFilters() { renderFeed(allRows); }
+
+function clearAllFilters() {
+  ['f-category','f-country','f-region','f-language','f-outlet'].forEach(id=>{
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('search-input').value = '';
+  searchQ = '';
+  renderFeed(allRows);
+}
+
+function getFilterValues() {
+  return {
+    category: document.getElementById('f-category').value,
+    country:  document.getElementById('f-country').value,
+    region:   document.getElementById('f-region').value,
+    language: document.getElementById('f-language').value,
+    outlet:   document.getElementById('f-outlet').value,
+  };
+}
+
+// ── Sort + filter rows ───────────────────────────────────────────────────────
+function processRows(rows) {
+  const f = getFilterValues();
+  let filtered = rows.filter(r => {
+    if (f.category && r['Category']  !== f.category)  return false;
+    if (f.country  && r['Country']   !== f.country)   return false;
+    if (f.region   && r['Region']    !== f.region)    return false;
+    if (f.language && r['Language']  !== f.language)  return false;
+    if (f.outlet   && r['Outlet']    !== f.outlet)    return false;
+    if (searchQ) {
+      const hay = [r['Headline'],r['Outlet'],r['Country'],r['Author'],r['Category']].join(' ').toLowerCase();
+      if (!hay.includes(searchQ)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    switch(sortMode) {
+      case 'country-asc':  return (a['Country']||'').localeCompare(b['Country']||'');
+      case 'country-desc': return (b['Country']||'').localeCompare(a['Country']||'');
+      case 'outlet-asc':   return (a['Outlet']||'').localeCompare(b['Outlet']||'');
+      case 'scraped-desc': return String(b['Scraped At']||'').localeCompare(String(a['Scraped At']||''));
+      case 'scraped-asc':  return String(a['Scraped At']||'').localeCompare(String(b['Scraped At']||''));
+      default: return 0;
+    }
+  });
+  return filtered;
+}
+
+// ── Group by category (or region if no category) ────────────────────────────
+function groupRows(rows) {
+  const groups = {};
+  rows.forEach(r => {
+    const key = r['Category'] || r['Region'] || 'GENERAL';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  return groups;
+}
+
+// ── Build a row element ──────────────────────────────────────────────────────
+function buildRow(r) {
+  const headline   = r['Headline']   || '—';
+  const outlet     = r['Outlet']     || '—';
+  const country    = r['Country']    || '—';
+  const lang       = r['Language']   || '';
+  const scrapedAt  = r['Scraped At'] || '';
+  const link       = r['Article Link'] || '';
+  const author     = r['Author']     || '';
+  const charCount  = Math.max(headline.length, 30);
+  const duration   = Math.max(12, Math.round(charCount / 8));
+
+  const contentHtml = link
+    ? `<a class="col-content-link" href="${esc(link)}" target="_blank" rel="noopener">${esc(headline)}&nbsp;&nbsp;&nbsp;&nbsp;${esc(headline)}</a>`
+    : `${esc(headline)}&nbsp;&nbsp;&nbsp;&nbsp;${esc(headline)}`;
+
+  const dateShort = scrapedAt ? scrapedAt.slice(0,16) : '';
+
+  const rowEl = document.createElement('div');
+  rowEl.className = 'data-row';
+  rowEl.innerHTML = `
+    <div class="col-source">
+      <div>${esc(country)}</div>
+      <div class="col-outlet">${esc(outlet)}</div>
+    </div>
+    <div class="col-content-wrap">
+      <span class="col-content-inner" style="animation-duration:${duration}s">${contentHtml}</span>
+    </div>
+    <div class="col-ts">
+      <div class="ts-country">${esc(country)}</div>
+      <div class="ts-lang">${esc(lang)}</div>
+      <div class="ts-date">${esc(dateShort)}</div>
+    </div>`;
+
+  // Build expand panel
+  const panelEl = document.createElement('div');
+  panelEl.className = 'expand-panel';
+
+  const fields = [
+    ['Category',     r['Category']],
+    ['Outlet',       r['Outlet']],
+    ['Country',      r['Country']],
+    ['Region',       r['Region']],
+    ['Language',     r['Language']],
+    ['Author',       r['Author']],
+    ['Published',    r['Published']],
+    ['Scraped At',   r['Scraped At']],
+    ['Summary',      r['Summary']],
+    ['Notes',        r['Notes']],
+  ].filter(([,v])=>v);
+
+  const linkHtml = link
+    ? `<div class="expand-field"><div class="expand-key">Article Link</div><div class="expand-val"><a href="${esc(link)}" target="_blank" rel="noopener">${esc(link.slice(0,80))}${link.length>80?'…':''}</a></div></div>`
+    : '';
+
+  panelEl.innerHTML = `
+    <div class="expand-headline">${esc(headline)}</div>
+    <div class="expand-grid" style="margin-top:10px">
+      ${fields.map(([k,v])=>`<div class="expand-field"><div class="expand-key">${esc(k)}</div><div class="expand-val">${esc(v)}</div></div>`).join('')}
+      ${linkHtml}
+    </div>`;
+
+  // Toggle expand on row click
+  rowEl.addEventListener('click', () => {
+    const wasOpen = rowEl.classList.contains('expanded');
+    // Close all others
+    document.querySelectorAll('.data-row.expanded').forEach(el => el.classList.remove('expanded'));
+    if (!wasOpen) rowEl.classList.add('expanded');
+  });
+
+  return [rowEl, panelEl];
+}
+
+// ── Render feed ──────────────────────────────────────────────────────────────
+function renderFeed(rows, isNew) {
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '';
+
+  const processed = processRows(rows);
+  const groups    = groupRows(processed);
+
+  // Sort group keys alphabetically
+  const sortedGroups = Object.keys(groups).sort();
+  let totalShown = 0;
+
+  sortedGroups.forEach(groupKey => {
+    const items = groups[groupKey];
+    if (!items.length) return;
+
+    const sectionWrap = document.createElement('div');
+    sectionWrap.className = 'section-wrap';
+
+    // Section header
+    sectionWrap.innerHTML = `
+      <div class="section-header">
+        <span class="section-badge">${esc(groupKey)}</span>
+        <span class="section-desc">NEWS</span>
+        <span class="section-count">${items.length} RECORD${items.length!==1?'S':''}</span>
+      </div>
+      <div class="col-header">
+        <span>COUNTRY · OUTLET</span>
+        <span style="text-align:center;display:block">HEADLINE</span>
+        <span>COUNTRY · LANG · DATE</span>
+      </div>`;
+
+    items.forEach(r => {
+      const [rowEl, panelEl] = buildRow(r);
+      sectionWrap.appendChild(rowEl);
+      sectionWrap.appendChild(panelEl);
+      totalShown++;
+    });
+
+    feed.appendChild(sectionWrap);
+  });
+
+  // Update status bar
+  document.getElementById('sb-count').textContent = totalShown.toLocaleString();
+  const countEl = document.getElementById('search-count');
+  if (countEl) countEl.textContent = searchQ ? `(${totalShown} matches)` : '';
+  document.getElementById('sb-live').textContent = `LIVE · ${totalShown.toLocaleString()} RECORDS`;
+
+  if (lastUpdate) {
+    document.getElementById('sb-update').textContent =
+      new Date(lastUpdate).toUTCString().slice(0,25).toUpperCase();
+  }
+}
+
+// ── Sort buttons ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sortMode = btn.dataset.sort;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderFeed(allRows);
+  });
+});
+
+// ── Search ───────────────────────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', function() {
+  searchQ = this.value.trim().toLowerCase();
+  renderFeed(allRows);
+});
+
+// ── Supabase polling ──────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/ticker_store?id=eq.2&select=data,updated_at`,
+      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    const rows = await r.json();
+    if (!rows?.[0]?.data?.rows?.length) return;
+
+    const newData = rows[0].data;
+    const newTs   = rows[0].updated_at;
+
+    if (newTs !== lastUpdate) {
+      lastUpdate = newTs;
+      allRows    = newData.rows;
+      populateFilters(allRows);
+      renderFeed(allRows, true);
+      document.getElementById('status-dot').classList.add('dot-live');
+    }
+  } catch(e) {
+    document.getElementById('status-dot').classList.remove('dot-live');
+  }
+}
+
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>

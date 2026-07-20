@@ -1324,6 +1324,206 @@ function CrossSearchForm({onJobStart}){
 }
 
 
+
+// ── NewsForm — xlsx upload, filter, push to news ticker ───────────────────
+function NewsForm(){
+  const COLS = ['Scraped At','Category','Outlet','Country','Region','Language','Headline','Published','Author','Summary','Article Link','News Section','Main Website','Notes'];
+  const FILTER_COLS = ['Category','Country','Region','Language','Outlet'];
+
+  const [rows,       setRows]       = useState([]);   // all parsed rows
+  const [fileName,   setFileName]   = useState('');
+  const [parsing,    setParsing]    = useState(false);
+  const [filters,    setFilters]    = useState({});   // {Country:Set(...), ...}
+  const [limit,      setLimit]      = useState(500);
+  const [msg,        setMsg]        = useState('');
+  const [pushing,    setPushing]    = useState(false);
+  const [preview,    setPreview]    = useState(false);
+  const [clearing,   setClearing]   = useState(false);
+  const fileRef = React.useRef(null);
+
+  // Compute unique values per filterable column from parsed rows
+  const uniques = React.useMemo(() => {
+    const u = {};
+    FILTER_COLS.forEach(col => { u[col] = new Set(); });
+    rows.forEach(r => FILTER_COLS.forEach(col => { if(r[col]) u[col].add(r[col]); }));
+    FILTER_COLS.forEach(col => { u[col] = [...u[col]].sort(); });
+    return u;
+  }, [rows]);
+
+  // Apply all active filters
+  const filtered = React.useMemo(() => {
+    return rows.filter(r =>
+      FILTER_COLS.every(col => {
+        const active = filters[col];
+        if (!active || active.size === 0) return true;
+        return active.has(r[col]);
+      })
+    );
+  }, [rows, filters]);
+
+  // Toggle a single filter value
+  const toggleFilter = (col, val) => {
+    setFilters(prev => {
+      const cur = new Set(prev[col] || []);
+      if (cur.has(val)) cur.delete(val); else cur.add(val);
+      return { ...prev, [col]: cur };
+    });
+  };
+  const clearFilter = col => setFilters(prev => ({ ...prev, [col]: new Set() }));
+  const isActive = (col, val) => (filters[col]?.has(val)) || false;
+  const anyActive = col => (filters[col]?.size || 0) > 0;
+
+  // Parse uploaded xlsx
+  const loadFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParsing(true); setRows([]); setFilters({}); setMsg('');
+    setFileName(file.name);
+    try {
+      const buf  = await file.arrayBuffer();
+      const wb   = XLSX.read(buf, {type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {defval:''});
+      setRows(data);
+      setMsg('✓ Loaded '+data.length.toLocaleString()+' rows from '+file.name);
+    } catch(err){ setMsg('✗ Parse error: '+err.message); }
+    setParsing(false);
+    e.target.value = '';
+  };
+
+  const pushNews = async () => {
+    const toSend = filtered.slice(0, limit);
+    if (!toSend.length){ alert('No rows match current filters.'); return; }
+    setPushing(true); setMsg('');
+    try {
+      const r = await API('/api/news/push', {
+        method:'POST',
+        body: JSON.stringify({
+          rows: toSend,
+          meta: { fileName, totalRows: rows.length, filteredRows: filtered.length, sentRows: toSend.length,
+                  filters: Object.fromEntries(FILTER_COLS.map(c=>[c,[...(filters[c]||[])]])) }
+        })
+      });
+      const d = await r.json();
+      if (d.ok) setMsg('✓ Pushed '+toSend.length.toLocaleString()+' rows to news ticker.');
+      else       setMsg('✗ '+(d.error||'Push failed'));
+    } catch(err){ setMsg('✗ '+err.message); }
+    setPushing(false);
+  };
+
+  const clearNews = async () => {
+    if (!window.confirm('Clear all news from the ticker?')) return;
+    setClearing(true);
+    await API('/api/news/clear',{method:'POST'});
+    setClearing(false); setMsg('✓ News ticker cleared.');
+  };
+
+  const btnStyle = (active) => ({
+    fontSize:10, padding:'2px 8px', margin:'2px', cursor:'pointer',
+    borderRadius:3, border:'1px solid', fontFamily:'var(--mono)',
+    background: active ? 'var(--blue3)' : 'var(--bg2)',
+    color:       active ? 'var(--blue)'  : 'var(--text3)',
+    borderColor: active ? 'var(--blue)'  : 'var(--border)',
+  });
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto'}}>
+      {/* Upload */}
+      <div className="sb-section">
+        <div className="sb-label">📰 News Upload</div>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={loadFile}/>
+        <button className="btn btn-primary btn-full" onClick={()=>fileRef.current?.click()} disabled={parsing}>
+          {parsing?<><span className="spinner"/>&nbsp;Parsing…</>:'📁 Upload .xlsx / .csv'}
+        </button>
+        {fileName&&<div style={{fontSize:10,color:'var(--text3)',marginTop:4,wordBreak:'break-all'}}>{fileName}</div>}
+      </div>
+
+      {/* Stats */}
+      {rows.length>0&&<div className="sb-section">
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+          {[['Total rows', rows.length.toLocaleString()],['Filtered', filtered.length.toLocaleString()],
+            ['To push', Math.min(filtered.length,limit).toLocaleString()],['Outlets', (uniques['Outlet']||[]).length]
+          ].map(([l,v])=>(
+            <div key={l} style={{background:'var(--bg2)',borderRadius:4,padding:'5px 8px',border:'1px solid var(--border)'}}>
+              <div style={{fontSize:8,color:'var(--text3)',letterSpacing:'.08em',textTransform:'uppercase'}}>{l}</div>
+              <div style={{fontSize:14,fontWeight:700,color:'var(--text)'}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8}}>
+          <div style={{fontSize:10,color:'var(--text3)'}}>Push limit</div>
+          <select value={limit} onChange={e=>setLimit(Number(e.target.value))}
+            style={{fontSize:11,padding:'2px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',flex:1}}>
+            {[100,250,500,1000,2000,5000].map(n=><option key={n} value={n}>{n.toLocaleString()} rows</option>)}
+          </select>
+        </div>
+      </div>}
+
+      {/* Filters */}
+      {rows.length>0&&FILTER_COLS.map(col=>(
+        <div key={col} className="sb-section">
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+            <div className="sb-label" style={{marginBottom:0}}>{col} {anyActive(col)&&<span style={{color:'var(--blue)',fontSize:9}}>●</span>}</div>
+            {anyActive(col)&&<button onClick={()=>clearFilter(col)} style={{fontSize:9,padding:'1px 5px',background:'transparent',border:'1px solid var(--border)',borderRadius:3,color:'var(--text3)',cursor:'pointer'}}>✕ clear</button>}
+          </div>
+          <div style={{maxHeight:120,overflowY:'auto',display:'flex',flexWrap:'wrap',gap:2}}>
+            {(uniques[col]||[]).map(val=>(
+              <button key={val} onClick={()=>toggleFilter(col,val)} style={btnStyle(isActive(col,val))}>
+                {val||'(blank)'}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Actions */}
+      {rows.length>0&&<div className="sb-section">
+        <button className="btn btn-primary btn-full" onClick={pushNews} disabled={pushing||!filtered.length}>
+          {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:`📡 Push ${Math.min(filtered.length,limit).toLocaleString()} rows to News Ticker`}
+        </button>
+        <button className="btn btn-full" style={{marginTop:6,background:'#2a0a0a',border:'1px solid #6a1a1a',color:'var(--red)',fontSize:11}} onClick={clearNews} disabled={clearing}>
+          {clearing?'Clearing…':'🗑 Clear News Ticker'}
+        </button>
+        <button className="btn btn-full" style={{marginTop:6,fontSize:11}} onClick={()=>setPreview(p=>!p)}>
+          {preview?'▲ Hide Preview':'▼ Preview filtered rows'}
+        </button>
+      </div>}
+
+      {/* Preview table */}
+      {preview&&filtered.length>0&&<div style={{padding:'0 12px 12px'}}>
+        <div style={{fontSize:10,color:'var(--text3)',marginBottom:4}}>Showing first 20 of {filtered.length.toLocaleString()} filtered rows</div>
+        <div style={{overflowX:'auto',fontSize:9}}>
+          <table style={{borderCollapse:'collapse',width:'100%',fontFamily:'var(--mono)'}}>
+            <thead>
+              <tr>{['Country','Language','Outlet','Headline'].map(h=>(
+                <th key={h} style={{padding:'3px 6px',borderBottom:'1px solid var(--border)',textAlign:'left',color:'var(--text3)',letterSpacing:'.06em',whiteSpace:'nowrap'}}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0,20).map((r,i)=>(
+                <tr key={i} style={{borderBottom:'1px solid var(--border)',background:i%2?'var(--bg2)':'transparent'}}>
+                  <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Country']||'—'}</td>
+                  <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Language']||'—'}</td>
+                  <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Outlet']||'—'}</td>
+                  <td style={{padding:'3px 6px',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r['Headline']||'—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>}
+
+      {/* Status message */}
+      {msg&&<div style={{margin:'8px 12px',fontSize:11,padding:'6px 10px',borderRadius:5,
+        background:msg.startsWith('✓')?'#0d1a0d':msg.startsWith('✗')?'#1a0808':'#1a1400',
+        color:msg.startsWith('✓')?'var(--green)':msg.startsWith('✗')?'var(--red)':'#d4a030',
+        border:'1px solid '+(msg.startsWith('✓')?'#2a5a2a':msg.startsWith('✗')?'#5a1a1a':'#5a4a00')
+      }}>{msg}</div>}
+    </div>
+  );
+}
+
+
 function App(){
   const [jobId,setJobId]=useState(null);
   const [sideTab,setSideTab]=useState('scrape');const[plat,setPlat]=useState('youtube');const[mode,setMode]=useState('search');
@@ -1424,9 +1624,11 @@ function App(){
           <div style={{display:'flex',borderBottom:'1px solid var(--border)',marginBottom:0}}>
             <button onClick={()=>setSideTab('scrape')} style={{flex:1,padding:'8px 0',fontSize:11,background:'transparent',border:'none',borderBottom:sideTab==='scrape'?'2px solid var(--blue)':'2px solid transparent',color:sideTab==='scrape'?'var(--blue)':'var(--text3)',cursor:'pointer',fontWeight:sideTab==='scrape'?700:400,letterSpacing:'.06em'}}>SCRAPE</button>
             <button onClick={()=>setSideTab('cross')} style={{flex:1,padding:'8px 0',fontSize:11,background:'transparent',border:'none',borderBottom:sideTab==='cross'?'2px solid var(--blue)':'2px solid transparent',color:sideTab==='cross'?'var(--blue)':'var(--text3)',cursor:'pointer',fontWeight:sideTab==='cross'?700:400,letterSpacing:'.06em'}}>✦ CROSS-SEARCH</button>
+            <button onClick={()=>setSideTab('news')} style={{flex:1,padding:'8px 0',fontSize:11,background:'transparent',border:'none',borderBottom:sideTab==='news'?'2px solid #d4a030':'2px solid transparent',color:sideTab==='news'?'#d4a030':'var(--text3)',cursor:'pointer',fontWeight:sideTab==='news'?700:400,letterSpacing:'.06em'}}>📰 NEWS</button>
           </div>
           {sideTab==='scrape' && <ScrapeForm onJobStart={handleStart}/>}
           {sideTab==='cross'  && <CrossSearchForm onJobStart={handleStart}/>}
+          {sideTab==='news'   && <NewsForm/>}
         </div>
         <div className="content">
           <div className="tabs">

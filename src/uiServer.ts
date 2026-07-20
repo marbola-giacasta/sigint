@@ -1208,6 +1208,78 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
   res.json({ ok: true, total: newSection.items.length, totalFeed: total, sections: merged.length });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// News store  —  Supabase id=2 (social ticker uses id=1)
+// Receives filtered xlsx rows from the admin News tab and serves them to
+// vercel-ticker/news-ticker.html via Supabase.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NEWS_FILE = path.join(process.cwd(), 'news-store.json');
+
+function loadNewsStore(): any {
+  try {
+    if (fs.existsSync(NEWS_FILE)) {
+      const d = JSON.parse(fs.readFileSync(NEWS_FILE, 'utf-8'));
+      origLog(`  ✓  News store loaded (${d?.rows?.length ?? 0} rows)`);
+      return d;
+    }
+  } catch (e: any) { origLog(`  ⚠  News store load error: ${e.message}`); }
+  return null;
+}
+function saveNewsStore(data: any): void {
+  try { fs.writeFileSync(NEWS_FILE, JSON.stringify(data), 'utf-8'); } catch {}
+}
+async function syncNewsToSupabase(data: any): Promise<void> {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/ticker_store?id=eq.2`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'return=representation',
+      },
+      body: JSON.stringify({ data, updated_at: new Date().toISOString() }),
+    });
+    const rows = await r.json().catch(() => []);
+    if (!r.ok || !rows.length) {
+      // Row id=2 does not exist yet — insert
+      await fetch(`${SUPABASE_URL}/rest/v1/ticker_store`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: 2, data, updated_at: new Date().toISOString() }),
+      });
+    }
+    origLog(`  ✓  News synced to Supabase (${data?.rows?.length ?? 0} rows)`);
+  } catch (e: any) { origError(`  ✗  News Supabase sync: ${e.message}`); }
+}
+
+let newsStore: any = loadNewsStore();
+
+app.get('/api/news/data', (_req: any, res: any): void => {
+  if (!newsStore) { res.status(204).end(); return; }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.json(newsStore);
+});
+
+app.post('/api/news/push', (req: any, res: any): void => {
+  const { rows, meta } = req.body as { rows: any[]; meta: any };
+  if (!Array.isArray(rows)) { res.status(400).json({ error: 'rows must be an array' }); return; }
+  newsStore = { rows, meta: { ...meta, pushedAt: Date.now() } };
+  saveNewsStore(newsStore);
+  syncNewsToSupabase(newsStore);
+  origLog(`News push: ${rows.length} rows`);
+  res.json({ ok: true, count: rows.length });
+});
+
+app.post('/api/news/clear', (_req: any, res: any): void => {
+  newsStore = null;
+  try { fs.writeFileSync(NEWS_FILE, JSON.stringify(null), 'utf-8'); } catch {}
+  syncNewsToSupabase({ rows: [], meta: { pushedAt: Date.now() } });
+  res.json({ ok: true });
+});
+
 // ── Express 5 error handler ───────────────────────────────────────────────────
 // In Express 5, errors thrown in async route handlers are automatically
 // forwarded here — no need for try/catch in individual routes.
