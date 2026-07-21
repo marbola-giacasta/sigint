@@ -596,63 +596,49 @@ body {
 /* Mobile charts */
 @media(max-width:640px){#charts-grid{grid-template-columns:1fr!important;padding:10px!important}.chart-card.wide{grid-column:1!important}}
 
-/* ── News tab panel ─────────────────────────────────────────────── */
-#news-panel {
-  display: none;
-  flex-direction: column;
-  flex: 1;
-  overflow-y: auto;
-}
-#news-panel.visible { display: flex; }
-#main-feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-/* Tab strip below controls */
-#tab-strip {
-  display: flex;
-  background: var(--bg);
-  border-bottom: 2px solid var(--rule);
-  padding: 0 20px;
-  gap: 0;
-}
-.tab-btn {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  padding: 7px 16px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--ink3);
-  cursor: pointer;
-  margin-bottom: -2px;
-}
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
-/* News rows */
-.news-row { display: grid; grid-template-columns: 130px 1fr 110px; min-height: var(--row-h); border-bottom: 1px solid var(--rule); align-items: center; cursor: pointer; transition: background .1s; }
-.news-row:hover { background: var(--bg); }
-.news-col-source { padding: 0 8px 0 20px; }
-.news-outlet { font-size: 8.5px; font-weight: 700; letter-spacing: .05em; color: var(--ink2); text-transform: uppercase; }
-.news-country { font-size: 7.5px; color: var(--ink3); margin-top: 1px; }
-.news-col-ts { padding: 0 16px 0 4px; text-align: right; }
-.news-ts-country { font-size: 8px; font-weight: 700; color: var(--ink2); }
-.news-ts-lang { font-size: 7px; color: var(--ink3); font-style: italic; }
-.news-ts-date { font-size: 6.5px; color: var(--ink3); opacity: .6; }
-.news-expand { display: none; background: #fdf9f0; border-top: 1px solid var(--rule); padding: 10px 20px; font-size: 9px; line-height: 1.5; }
-.news-row.expanded + .news-expand { display: block; }
-.news-headline { font-size: 10px; color: var(--ink); margin-bottom: 8px; line-height: 1.5; }
-.news-meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 14px; }
-.news-meta-item { display: flex; flex-direction: column; gap: 1px; }
-.news-meta-key { font-size: 7px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
-.news-meta-val { font-size: 8.5px; color: var(--ink); word-break: break-word; }
-.news-meta-val a { color: var(--accent2); }
-/* News controls */
-#news-controls { background: var(--bg); border-bottom: 1px solid var(--rule); padding: 5px 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.news-filter-sel { font-family: var(--mono); font-size: 8.5px; padding: 2px 5px; background: var(--paper); border: 1px solid var(--rule); color: var(--ink); border-radius: 2px; max-width: 130px; }
-#news-status { font-size: 8px; color: var(--ink3); margin-left: auto; letter-spacing: .06em; }
+/* ── Tab strip ──────────────────────────────────────────────────────── */
+#tab-strip { display:flex; background:var(--bg); border-bottom:2px solid var(--rule); padding:0 20px; }
+.tab-btn { font-family:var(--mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase;
+  padding:7px 18px; background:none; border:none; border-bottom:3px solid transparent;
+  color:var(--ink3); cursor:pointer; margin-bottom:-2px; transition:color .15s; }
+.tab-btn:hover { color:var(--ink2); }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:700; }
+/* ── News panel ─────────────────────────────────────────────────────── */
+#news-panel { display:none; flex-direction:column; overflow-y:auto; flex:1; }
+#news-panel.active { display:flex; }
+#news-controls { background:var(--bg); border-bottom:1px solid var(--rule); padding:5px 20px;
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.nf-sel { font-family:var(--mono); font-size:8.5px; padding:2px 5px; background:var(--paper);
+  border:1px solid var(--rule); color:var(--ink); border-radius:2px; max-width:130px; }
+#news-search-in { font-family:var(--mono); font-size:8.5px; border:none;
+  border-bottom:1px solid var(--rule); background:transparent; padding:2px 4px; color:var(--ink);
+  outline:none; width:140px; }
+.news-row { display:grid; grid-template-columns:130px 1fr 110px; min-height:var(--row-h);
+  border-bottom:1px solid var(--rule); align-items:center; cursor:pointer; transition:background .1s; }
+.news-row:hover { background:var(--bg); }
+.news-left { padding:0 8px 0 20px; overflow:hidden; }
+.news-outlet { font-size:8.5px; font-weight:700; letter-spacing:.05em; color:var(--ink2);
+  text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.news-cntry-sm { font-size:7.5px; color:var(--ink3); margin-top:1px; }
+.news-right { padding:0 16px 0 4px; display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+.news-rc { font-size:8px; font-weight:700; color:var(--ink2); white-space:nowrap; }
+.news-rl { font-size:7px; color:var(--ink3); font-style:italic; white-space:nowrap; }
+.news-rd { font-size:6.5px; color:var(--ink3); opacity:.55; white-space:nowrap; }
+.news-exp { display:none; background:#fdf9f0; border-top:1px solid var(--rule); padding:10px 20px 12px; font-size:9px; }
+.news-row.exp-open + .news-exp { display:block; }
+.news-head { font-size:10px; color:var(--ink); line-height:1.5; margin-bottom:8px; }
+.news-mg { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:5px 14px; }
+.news-mi { display:flex; flex-direction:column; gap:1px; }
+.news-mk { font-size:7px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink3); }
+.news-mv { font-size:8.5px; color:var(--ink); word-break:break-word; }
+.news-mv a { color:var(--accent2); }
+.src-news { color:var(--accent2)!important; border-color:var(--accent2)!important; }
+#news-msg { font-size:8px; color:var(--ink3); margin-left:auto; letter-spacing:.06em; }
 @media(max-width:640px){
-  .news-row { grid-template-columns: 80px 1fr 75px; }
-  .news-outlet { font-size: 7.5px; }
-  .news-col-source { padding: 0 4px 0 10px; }
+  .news-row { grid-template-columns:75px 1fr 72px; }
+  .news-left { padding:0 4px 0 10px; }
+  .news-outlet { font-size:7.5px; }
+  .news-right { padding:0 8px 0 2px; }
 }
 
 </style>
@@ -1670,182 +1656,104 @@ async function buildChartsFromStore(store) {
 
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
-let activeTab = 'social';
 function switchTab(tab) {
-  activeTab = tab;
-  document.getElementById('tab-social').classList.toggle('active', tab === 'social');
-  document.getElementById('tab-news').classList.toggle('active', tab === 'news');
-  document.getElementById('main-feed').style.display = tab === 'social' ? 'flex' : 'none';
-  document.getElementById('news-panel').classList.toggle('visible', tab === 'news');
-  if (tab === 'news' && newsRows.length === 0) fetchNews();
+  document.getElementById('tab-soc').classList.toggle('active', tab==='social');
+  document.getElementById('tab-nws').classList.toggle('active', tab==='news');
+  document.getElementById('social-wrap').style.display = tab==='social' ? 'flex' : 'none';
+  document.getElementById('news-panel').classList.toggle('active', tab==='news');
+  if (tab==='news') extractAndRenderNews();
 }
 
-// ── News data ──────────────────────────────────────────────────────────────────
-let newsRows = [];
-let newsLastUpdate = null;
-
-async function fetchNews() {
-  try {
-    const r = await fetch(
-      SUPABASE_URL + '/rest/v1/ticker_store?id=eq.2&select=data,updated_at',
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } }
-    );
-    const rows = await r.json();
-    if (!rows?.[0]?.data?.rows?.length) {
-      document.getElementById('news-status').textContent = 'NO NEWS DATA YET — push from admin UI first';
-      return;
-    }
-    const newTs = rows[0].updated_at;
-    if (newTs !== newsLastUpdate) {
-      newsLastUpdate = newTs;
-      newsRows = rows[0].data.rows;
-      populateNewsFilters(newsRows);
-      renderNews();
-    }
-  } catch(e) {
-    document.getElementById('news-status').textContent = 'ERROR: ' + e.message;
+// ── News data (stored inside currentData.news by the server) ──────────────────
+function extractAndRenderNews() {
+  if (!currentData || !currentData.news || !currentData.news.rows) {
+    document.getElementById('news-msg').textContent = 'NO NEWS DATA — push from admin 📰 NEWS tab first';
+    return;
   }
+  const rows = currentData.news.rows;
+  populateNF(rows);
+  renderNews(rows);
 }
 
-function populateNewsFilters(rows) {
-  const cols = { 'nf-category':'Category', 'nf-country':'Country', 'nf-language':'Language', 'nf-outlet':'Outlet' };
-  Object.entries(cols).forEach(([id, key]) => {
-    const sel = document.getElementById(id);
-    const cur = sel.value;
-    const vals = [...new Set(rows.map(r => r[key]).filter(Boolean))].sort();
-    sel.innerHTML = '<option value="">All ' + key.toLowerCase() + 's</option>'
-      + vals.map(v => '<option value="' + escHtml(v) + '">' + escHtml(v) + '</option>').join('');
+function populateNF(rows) {
+  const map = { 'nf-cat':'Category','nf-ctr':'Country','nf-lang':'Language','nf-out':'Outlet' };
+  Object.entries(map).forEach(([id,k]) => {
+    const sel = document.getElementById(id), cur = sel.value;
+    const vals = [...new Set(rows.map(r=>r[k]).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">All '+k.toLowerCase()+'s</option>'
+      + vals.map(v=>'<option value="'+escHtml(v)+'">'+escHtml(v)+'</option>').join('');
     if (vals.includes(cur)) sel.value = cur;
   });
 }
 
-function clearNewsFilters() {
-  ['nf-category','nf-country','nf-language','nf-outlet'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('news-search').value = '';
-  renderNews();
+function clearNF() {
+  ['nf-cat','nf-ctr','nf-lang','nf-out'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('news-search-in').value = '';
+  if (currentData?.news) renderNews(currentData.news.rows||[]);
 }
 
-function renderNews() {
-  const feed   = document.getElementById('news-feed');
-  const cat    = document.getElementById('nf-category').value;
-  const cntry  = document.getElementById('nf-country').value;
-  const lang   = document.getElementById('nf-language').value;
-  const outlet = document.getElementById('nf-outlet').value;
-  const q      = document.getElementById('news-search').value.trim().toLowerCase();
-
-  let filtered = newsRows.filter(r => {
-    if (cat    && r['Category'] !== cat)    return false;
-    if (cntry  && r['Country']  !== cntry)  return false;
-    if (lang   && r['Language'] !== lang)   return false;
-    if (outlet && r['Outlet']   !== outlet) return false;
-    if (q) {
-      const hay = [r['Headline'],r['Outlet'],r['Country'],r['Author']].join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
+function renderNews(rows) {
+  if (!rows && currentData?.news) rows = currentData.news.rows||[];
+  if (!rows || !rows.length) { document.getElementById('news-msg').textContent='NO NEWS DATA'; return; }
+  const cat=document.getElementById('nf-cat').value, ctr=document.getElementById('nf-ctr').value,
+        lng=document.getElementById('nf-lang').value, out=document.getElementById('nf-out').value,
+        q=document.getElementById('news-search-in').value.trim().toLowerCase();
+  let f = rows.filter(r => {
+    if (cat && r['Category']!==cat) return false;
+    if (ctr && r['Country']!==ctr)  return false;
+    if (lng && r['Language']!==lng) return false;
+    if (out && r['Outlet']!==out)   return false;
+    if (q && ![r['Headline'],r['Outlet'],r['Country'],r['Author'],r['Category']].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
-
-  // Sort by Country A-Z then Outlet
-  filtered.sort((a,b) => {
-    const cc = (a['Country']||'').localeCompare(b['Country']||'');
-    return cc !== 0 ? cc : (a['Outlet']||'').localeCompare(b['Outlet']||'');
-  });
-
-  // Group by Category (fallback to Region → GENERAL)
-  const groups = {};
-  filtered.forEach(r => {
-    const key = r['Category'] || r['Region'] || 'GENERAL';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(r);
-  });
-
-  feed.innerHTML = '';
-  const sortedGroups = Object.keys(groups).sort();
-  let total = 0;
-
-  sortedGroups.forEach(grp => {
-    const items = groups[grp];
-    const secWrap = document.createElement('div');
-    secWrap.className = 'section-wrap';
-    secWrap.innerHTML =
-      '<div class="section-header">' +
-        '<span class="section-source-badge src-news">' + escHtml(grp) + '</span>' +
-        '<span class="section-desc">NEWS</span>' +
-        '<span class="section-count">' + items.length + ' RECORD' + (items.length !== 1 ? 'S' : '') + '</span>' +
-      '</div>' +
-      '<div class="col-header">' +
-        '<span>OUTLET · COUNTRY</span>' +
-        '<span style="text-align:center;display:block">HEADLINE</span>' +
-        '<span style="text-align:right;display:block">COUNTRY · LANG</span>' +
-      '</div>';
-
-    items.forEach(r => {
-      const headline  = r['Headline']   || '—';
-      const outlet    = r['Outlet']     || '—';
-      const country   = r['Country']    || '—';
-      const lang      = r['Language']   || '';
-      const scrapedAt = String(r['Scraped At'] || '').slice(0, 16);
-      const link      = r['Article Link'] || '';
-      const charCount = Math.max(headline.length, 30);
-      const dur       = Math.max(12, Math.round(charCount / 8));
-      const content   = link
-        ? '<a class="col-content-link" href="' + escHtml(link) + '" target="_blank" rel="noopener">' + escHtml(headline) + '&nbsp;&nbsp;&nbsp;&nbsp;' + escHtml(headline) + '</a>'
-        : escHtml(headline) + '&nbsp;&nbsp;&nbsp;&nbsp;' + escHtml(headline);
-
-      const rowEl = document.createElement('div');
-      rowEl.className = 'news-row';
-      rowEl.innerHTML =
-        '<div class="news-col-source">' +
-          '<div class="news-outlet">' + escHtml(outlet) + '</div>' +
-          '<div class="news-country">' + escHtml(country) + '</div>' +
-        '</div>' +
-        '<div class="col-content-wrap">' +
-          '<span class="col-content-inner" style="animation-duration:' + dur + 's">' + content + '</span>' +
-        '</div>' +
-        '<div class="news-col-ts">' +
-          '<div class="news-ts-country">' + escHtml(country) + '</div>' +
-          '<div class="news-ts-lang">' + escHtml(lang) + '</div>' +
-          '<div class="news-ts-date">' + escHtml(scrapedAt) + '</div>' +
-        '</div>';
-
-      const expandEl = document.createElement('div');
-      expandEl.className = 'news-expand';
-      const fields = [
-        ['Category', r['Category']], ['Region', r['Region']], ['Author', r['Author']],
-        ['Published', r['Published']], ['Scraped At', r['Scraped At']],
-        ['Outlet', r['Outlet']], ['Country', r['Country']], ['Language', r['Language']],
-        ['Summary', r['Summary']], ['Notes', r['Notes']],
-      ].filter(([,v]) => v);
-      expandEl.innerHTML =
-        '<div class="news-headline">' + escHtml(headline) + '</div>' +
-        '<div class="news-meta-grid">' +
-          fields.map(([k,v]) =>
-            '<div class="news-meta-item"><div class="news-meta-key">' + escHtml(k) + '</div><div class="news-meta-val">' + escHtml(v) + '</div></div>'
-          ).join('') +
-          (link ? '<div class="news-meta-item"><div class="news-meta-key">Article Link</div><div class="news-meta-val"><a href="' + escHtml(link) + '" target="_blank" rel="noopener">' + escHtml(link.slice(0,70)) + (link.length>70?'…':'') + '</a></div></div>' : '') +
-        '</div>';
-
-      rowEl.addEventListener('click', () => {
-        const wasOpen = rowEl.classList.contains('expanded');
-        document.querySelectorAll('.news-row.expanded').forEach(el => el.classList.remove('expanded'));
-        if (!wasOpen) rowEl.classList.add('expanded');
+  f.sort((a,b)=>{const c=(a['Country']||'').localeCompare(b['Country']||'');return c||((a['Outlet']||'').localeCompare(b['Outlet']||''));});
+  const grps={};
+  f.forEach(r=>{ const k=r['Category']||r['Region']||'GENERAL'; (grps[k]=grps[k]||[]).push(r); });
+  const feed=document.getElementById('news-feed');
+  feed.innerHTML='';
+  let total=0;
+  Object.keys(grps).sort().forEach(grp=>{
+    const items=grps[grp], sec=document.createElement('div');
+    sec.className='section-wrap';
+    sec.innerHTML='<div class="section-header"><span class="section-source-badge src-news">'+escHtml(grp)+'</span><span class="section-desc">NEWS</span><span class="section-count">'+items.length+' RECORD'+(items.length!==1?'S':'')+'</span></div>'
+      +'<div class="col-header"><span>OUTLET · COUNTRY</span><span style="text-align:center;display:block">HEADLINE</span><span style="text-align:right;display:block">COUNTRY · LANG</span></div>';
+    items.forEach(r=>{
+      const hl=r['Headline']||'—', lk=r['Article Link']||'', cntry=r['Country']||'—',
+            lng2=r['Language']||'', outl=r['Outlet']||'—', sc=String(r['Scraped At']||'').slice(0,16),
+            dur=Math.max(12,Math.round(Math.max(hl.length,30)/8)),
+            inner=lk?'<a class="col-content-link" href="'+escHtml(lk)+'" target="_blank" rel="noopener">'+escHtml(hl)+'&nbsp;&nbsp;&nbsp;'+escHtml(hl)+'</a>':escHtml(hl)+'&nbsp;&nbsp;&nbsp;'+escHtml(hl);
+      const row=document.createElement('div');
+      row.className='news-row';
+      row.innerHTML='<div class="news-left"><div class="news-outlet">'+escHtml(outl)+'</div><div class="news-cntry-sm">'+escHtml(cntry)+'</div></div>'
+        +'<div class="col-content-wrap"><span class="col-content-inner" style="animation-duration:'+dur+'s">'+inner+'</span></div>'
+        +'<div class="news-right"><div class="news-rc">'+escHtml(cntry)+'</div><div class="news-rl">'+escHtml(lng2)+'</div><div class="news-rd">'+escHtml(sc)+'</div></div>';
+      const exp=document.createElement('div');
+      exp.className='news-exp';
+      const flds=[['Category',r['Category']],['Region',r['Region']],['Author',r['Author']],
+        ['Published',r['Published']],['Scraped At',r['Scraped At']],['Summary',r['Summary']],['Notes',r['Notes']]].filter(([,v])=>v);
+      exp.innerHTML='<div class="news-head">'+escHtml(hl)+'</div><div class="news-mg">'
+        +flds.map(([k,v])=>'<div class="news-mi"><div class="news-mk">'+escHtml(k)+'</div><div class="news-mv">'+escHtml(v)+'</div></div>').join('')
+        +(lk?'<div class="news-mi"><div class="news-mk">Article Link</div><div class="news-mv"><a href="'+escHtml(lk)+'" target="_blank" rel="noopener">'+escHtml(lk.slice(0,70))+(lk.length>70?'…':'')+'</a></div></div>':'')+'</div>';
+      row.addEventListener('click',()=>{
+        const o=row.classList.contains('exp-open');
+        document.querySelectorAll('.news-row.exp-open').forEach(el=>el.classList.remove('exp-open'));
+        if(!o) row.classList.add('exp-open');
       });
-
-      secWrap.appendChild(rowEl);
-      secWrap.appendChild(expandEl);
-      total++;
+      sec.appendChild(row); sec.appendChild(exp); total++;
     });
-
-    feed.appendChild(secWrap);
+    feed.appendChild(sec);
   });
-
-  document.getElementById('news-status').textContent = total + ' RECORDS';
+  document.getElementById('news-msg').textContent=total+' RECORDS';
 }
 
-// Poll news every 10s (social ticker polls every 5s separately)
-setInterval(() => { if (activeTab === 'news' || newsRows.length === 0) fetchNews(); }, 10000);
+// Hook: re-render news when poll gets new data
+const _origRFeed = typeof renderFeed === 'function' ? renderFeed : null;
+if (_origRFeed) {
+  window.renderFeed = function(data, isNew) {
+    _origRFeed(data, isNew);
+    if (document.getElementById('news-panel').classList.contains('active')) extractAndRenderNews();
+  };
+}
 
 </script>
 
