@@ -1208,6 +1208,49 @@ app.post('/api/ticker/push', (req: any, res: any): void => {
   res.json({ ok: true, total: newSection.items.length, totalFeed: total, sections: merged.length });
 });
 
+/** POST /api/news/push — upsert news rows to Supabase id=2, bypassing browser RLS */
+app.post('/api/news/push', async (req: any, res: any): Promise<void> => {
+  const { rows, meta } = req.body as { rows: any[]; meta: any };
+  if (!Array.isArray(rows)) { res.status(400).json({ error: 'rows must be array' }); return; }
+  const payload = { rows, meta: { ...meta, pushedAt: Date.now() } };
+  const hdrs = {
+    'apikey':        SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'Content-Type':  'application/json',
+    'Prefer':        'resolution=merge-duplicates,return=representation',
+  };
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/ticker_store`, {
+      method:  'POST',
+      headers: hdrs,
+      body:    JSON.stringify({ id: 2, data: payload, updated_at: new Date().toISOString() }),
+    });
+    if (r.ok) {
+      origLog(`News push: ${rows.length} rows → Supabase id=2 (HTTP ${r.status})`);
+      res.json({ ok: true, count: rows.length });
+    } else {
+      const txt = await r.text();
+      origError(`News push Supabase error ${r.status}: ${txt.slice(0,120)}`);
+      res.status(500).json({ ok: false, error: `Supabase ${r.status}: ${txt.slice(0,120)}` });
+    }
+  } catch(e: any) {
+    origError('News push error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/** POST /api/news/clear */
+app.post('/api/news/clear', async (_req: any, res: any): Promise<void> => {
+  const empty = { rows: [], meta: { pushedAt: Date.now() } };
+  await fetch(`${SUPABASE_URL}/rest/v1/ticker_store`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+               'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify({ id: 2, data: empty, updated_at: new Date().toISOString() }),
+  }).catch(() => {});
+  res.json({ ok: true });
+});
+
 // ── Express 5 error handler ───────────────────────────────────────────────────
 // In Express 5, errors thrown in async route handlers are automatically
 // forwarded here — no need for try/catch in individual routes.

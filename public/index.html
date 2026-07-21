@@ -1395,29 +1395,18 @@ function NewsForm(){
     setPushing(true);
     setMsg('⏳ Pushing ' + toSend.length.toLocaleString() + ' rows…');
     try {
-      const payload = {
-        rows: toSend,
-        meta: { fileName, totalRows: rows.length, filteredRows: filtered.length, sentRows: toSend.length, pushedAt: Date.now() }
-      };
-      const hdrs = {
-        'apikey':        NEWS_SUPABASE_KEY,
-        'Authorization': 'Bearer ' + NEWS_SUPABASE_KEY,
-        'Content-Type':  'application/json',
-        'Prefer':        'return=representation'
-      };
-      const body = JSON.stringify({ data: payload, updated_at: new Date().toISOString() });
-
-      // UPSERT: Supabase supports upsert via POST with Prefer: resolution=merge-duplicates
-      const r = await fetch(NEWS_SUPABASE_URL + '/rest/v1/ticker_store', {
+      const r = await API('/api/news/push', {
         method: 'POST',
-        headers: { ...hdrs, 'Prefer': 'resolution=merge-duplicates,return=representation' },
-        body: JSON.stringify({ id: 2, data: payload, updated_at: new Date().toISOString() })
+        body: JSON.stringify({
+          rows: toSend,
+          meta: { fileName, totalRows: rows.length, filteredRows: filtered.length, sentRows: toSend.length }
+        })
       });
-      if (r.ok) {
-        setMsg('✓ Pushed ' + toSend.length.toLocaleString() + ' rows to news ticker. Reload sigint-silk.vercel.app/news-ticker.html to see them.');
+      const d = await r.json();
+      if (d.ok) {
+        setMsg('✓ Pushed ' + d.count.toLocaleString() + ' rows to news ticker.');
       } else {
-        const err = await r.text().catch(() => 'unknown error');
-        setMsg('✗ Supabase error ' + r.status + ': ' + err.slice(0, 120));
+        setMsg('✗ ' + (d.error || 'Push failed'));
       }
     } catch(err){ setMsg('✗ ' + err.message); }
     setPushing(false);
@@ -1427,11 +1416,7 @@ function NewsForm(){
     if (!window.confirm('Clear all news from the ticker?')) return;
     setMsg('Clearing…');
     try {
-      await fetch(NEWS_SUPABASE_URL + '/rest/v1/ticker_store?id=eq.2', {
-        method: 'PATCH',
-        headers: { apikey: NEWS_SUPABASE_KEY, Authorization: 'Bearer ' + NEWS_SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify({ data: { rows: [], meta: { pushedAt: Date.now() } }, updated_at: new Date().toISOString() })
-      });
+      await API('/api/news/clear', { method: 'POST' });
       setMsg('✓ News ticker cleared.');
     } catch(err){ setMsg('✗ ' + err.message); }
   };
