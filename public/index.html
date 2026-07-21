@@ -1390,7 +1390,7 @@ function NewsForm(){
 
   // Push filtered rows directly to Supabase (id=2)
   const pushNews = async () => {
-    const toSend = filtered.slice(0, limit);
+    const toSend = limit === 0 ? filtered : filtered.slice(0, limit);
     if (!toSend.length){ alert('No rows match current filters.'); return; }
     setPushing(true);
     setMsg('⏳ Pushing ' + toSend.length.toLocaleString() + ' rows…');
@@ -1443,7 +1443,7 @@ function NewsForm(){
 
       {rows.length>0&&<div className="sb-section">
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-          {[['Total',rows.length.toLocaleString()],['Filtered',filtered.length.toLocaleString()],['To push',Math.min(filtered.length,limit).toLocaleString()],['Outlets',(uniques['Outlet']||[]).length]].map(([l,v])=>(
+          {[['Total',rows.length.toLocaleString()],['Filtered',filtered.length.toLocaleString()],['To push',(limit===0?filtered.length:Math.min(filtered.length,limit)).toLocaleString()],['Outlets',(uniques['Outlet']||[]).length]].map(([l,v])=>(
             <div key={l} style={{background:'var(--bg2)',borderRadius:4,padding:'5px 8px',border:'1px solid var(--border)'}}>
               <div style={{fontSize:8,color:'var(--text3)',letterSpacing:'.08em',textTransform:'uppercase'}}>{l}</div>
               <div style={{fontSize:14,fontWeight:700,color:'var(--text)'}}>{v}</div>
@@ -1454,7 +1454,8 @@ function NewsForm(){
           <div style={{fontSize:10,color:'var(--text3)'}}>Push limit</div>
           <select value={limit} onChange={e=>setLimit(Number(e.target.value))}
             style={{fontSize:11,padding:'2px 5px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',flex:1}}>
-            {[100,250,500,1000,2000,5000].map(n=><option key={n} value={n}>{n.toLocaleString()} rows</option>)}
+            <option value={0}>All filtered rows</option>
+              {[100,250,500,1000,2000,5000,10000].map(n=><option key={n} value={n}>{n.toLocaleString()} rows</option>)}
           </select>
         </div>
       </div>}
@@ -1475,7 +1476,7 @@ function NewsForm(){
 
       {rows.length>0&&<div className="sb-section">
         <button className="btn btn-primary btn-full" onClick={pushNews} disabled={pushing||!filtered.length}>
-          {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:`📡 Push ${Math.min(filtered.length,limit).toLocaleString()} rows to News Ticker`}
+          {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:`📡 Push ${(limit===0?filtered.length:Math.min(filtered.length,limit)).toLocaleString()} rows to News Ticker`}
         </button>
         <button className="btn btn-full" style={{marginTop:6,background:'#2a0a0a',border:'1px solid #6a1a1a',color:'var(--red)',fontSize:11}} onClick={clearNews}>
           🗑 Clear News Ticker

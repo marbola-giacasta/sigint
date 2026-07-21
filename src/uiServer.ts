@@ -860,7 +860,7 @@ let tickerStore: {
  */
 const app = express();
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
 
 // Allow the Vercel ticker (and any other origin) to fetch /api/ticker/data
 app.use((req: any, res: any, next: any) => {
