@@ -1325,23 +1325,26 @@ function CrossSearchForm({onJobStart}){
 
 
 
-// ── NewsForm — xlsx upload, filter, push to news ticker ───────────────────
+// ── NewsForm — xlsx upload, filter, push directly to Supabase ────────────────
+// No server-side changes needed: the browser pushes filtered rows straight to
+// Supabase (id=2), which news-ticker.html polls every 5s.
+const NEWS_SUPABASE_URL = 'https://qqmidswgsqmimxrlyqru.supabase.co';
+const NEWS_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxbWlkc3dnc3FtaW14cmx5cXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTU3MTgsImV4cCI6MjA5NTIzMTcxOH0.UDgz4TfVM7t4jLNA-IKB8C1SVhuJj_jKXac6PApo544';
+
 function NewsForm(){
-  const COLS = ['Scraped At','Category','Outlet','Country','Region','Language','Headline','Published','Author','Summary','Article Link','News Section','Main Website','Notes'];
   const FILTER_COLS = ['Category','Country','Region','Language','Outlet'];
 
-  const [rows,       setRows]       = useState([]);   // all parsed rows
-  const [fileName,   setFileName]   = useState('');
-  const [parsing,    setParsing]    = useState(false);
-  const [filters,    setFilters]    = useState({});   // {Country:Set(...), ...}
-  const [limit,      setLimit]      = useState(500);
-  const [msg,        setMsg]        = useState('');
-  const [pushing,    setPushing]    = useState(false);
-  const [preview,    setPreview]    = useState(false);
-  const [clearing,   setClearing]   = useState(false);
+  const [rows,      setRows]     = useState([]);
+  const [fileName,  setFileName] = useState('');
+  const [parsing,   setParsing]  = useState(false);
+  const [filters,   setFilters]  = useState({});
+  const [limit,     setLimit]    = useState(500);
+  const [msg,       setMsg]      = useState('');
+  const [pushing,   setPushing]  = useState(false);
+  const [preview,   setPreview]  = useState(false);
   const fileRef = React.useRef(null);
 
-  // Compute unique values per filterable column from parsed rows
+  // Unique values per filterable column
   const uniques = React.useMemo(() => {
     const u = {};
     FILTER_COLS.forEach(col => { u[col] = new Set(); });
@@ -1351,29 +1354,23 @@ function NewsForm(){
   }, [rows]);
 
   // Apply all active filters
-  const filtered = React.useMemo(() => {
-    return rows.filter(r =>
-      FILTER_COLS.every(col => {
-        const active = filters[col];
-        if (!active || active.size === 0) return true;
-        return active.has(r[col]);
-      })
-    );
-  }, [rows, filters]);
+  const filtered = React.useMemo(() => rows.filter(r =>
+    FILTER_COLS.every(col => {
+      const a = filters[col];
+      return !a || a.size === 0 || a.has(r[col]);
+    })
+  ), [rows, filters]);
 
-  // Toggle a single filter value
-  const toggleFilter = (col, val) => {
-    setFilters(prev => {
-      const cur = new Set(prev[col] || []);
-      if (cur.has(val)) cur.delete(val); else cur.add(val);
-      return { ...prev, [col]: cur };
-    });
-  };
+  const toggleFilter = (col, val) => setFilters(prev => {
+    const cur = new Set(prev[col] || []);
+    cur.has(val) ? cur.delete(val) : cur.add(val);
+    return { ...prev, [col]: cur };
+  });
   const clearFilter = col => setFilters(prev => ({ ...prev, [col]: new Set() }));
-  const isActive = (col, val) => (filters[col]?.has(val)) || false;
-  const anyActive = col => (filters[col]?.size || 0) > 0;
+  const isActive  = (col, val) => !!(filters[col]?.has(val));
+  const anyActive = col => !!(filters[col]?.size);
 
-  // Parse uploaded xlsx
+  // Parse xlsx in-browser with SheetJS
   const loadFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1385,42 +1382,63 @@ function NewsForm(){
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws, {defval:''});
       setRows(data);
-      setMsg('✓ Loaded '+data.length.toLocaleString()+' rows from '+file.name);
-    } catch(err){ setMsg('✗ Parse error: '+err.message); }
+      setMsg('✓ Loaded ' + data.length.toLocaleString() + ' rows from ' + file.name);
+    } catch(err){ setMsg('✗ Parse error: ' + err.message); }
     setParsing(false);
     e.target.value = '';
   };
 
+  // Push filtered rows directly to Supabase (id=2)
   const pushNews = async () => {
     const toSend = filtered.slice(0, limit);
     if (!toSend.length){ alert('No rows match current filters.'); return; }
-    setPushing(true); setMsg('');
+    setPushing(true);
+    setMsg('⏳ Pushing ' + toSend.length.toLocaleString() + ' rows…');
     try {
-      const r = await API('/api/news/push', {
-        method:'POST',
-        body: JSON.stringify({
-          rows: toSend,
-          meta: { fileName, totalRows: rows.length, filteredRows: filtered.length, sentRows: toSend.length,
-                  filters: Object.fromEntries(FILTER_COLS.map(c=>[c,[...(filters[c]||[])]])) }
-        })
+      const payload = {
+        rows: toSend,
+        meta: { fileName, totalRows: rows.length, filteredRows: filtered.length, sentRows: toSend.length, pushedAt: Date.now() }
+      };
+      const hdrs = {
+        'apikey':        NEWS_SUPABASE_KEY,
+        'Authorization': 'Bearer ' + NEWS_SUPABASE_KEY,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=representation'
+      };
+      const body = JSON.stringify({ data: payload, updated_at: new Date().toISOString() });
+
+      // UPSERT: Supabase supports upsert via POST with Prefer: resolution=merge-duplicates
+      const r = await fetch(NEWS_SUPABASE_URL + '/rest/v1/ticker_store', {
+        method: 'POST',
+        headers: { ...hdrs, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({ id: 2, data: payload, updated_at: new Date().toISOString() })
       });
-      const d = await r.json();
-      if (d.ok) setMsg('✓ Pushed '+toSend.length.toLocaleString()+' rows to news ticker.');
-      else       setMsg('✗ '+(d.error||'Push failed'));
-    } catch(err){ setMsg('✗ '+err.message); }
+      if (r.ok) {
+        setMsg('✓ Pushed ' + toSend.length.toLocaleString() + ' rows to news ticker. Reload sigint-silk.vercel.app/news-ticker.html to see them.');
+      } else {
+        const err = await r.text().catch(() => 'unknown error');
+        setMsg('✗ Supabase error ' + r.status + ': ' + err.slice(0, 120));
+      }
+    } catch(err){ setMsg('✗ ' + err.message); }
     setPushing(false);
   };
 
   const clearNews = async () => {
     if (!window.confirm('Clear all news from the ticker?')) return;
-    setClearing(true);
-    await API('/api/news/clear',{method:'POST'});
-    setClearing(false); setMsg('✓ News ticker cleared.');
+    setMsg('Clearing…');
+    try {
+      await fetch(NEWS_SUPABASE_URL + '/rest/v1/ticker_store?id=eq.2', {
+        method: 'PATCH',
+        headers: { apikey: NEWS_SUPABASE_KEY, Authorization: 'Bearer ' + NEWS_SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ data: { rows: [], meta: { pushedAt: Date.now() } }, updated_at: new Date().toISOString() })
+      });
+      setMsg('✓ News ticker cleared.');
+    } catch(err){ setMsg('✗ ' + err.message); }
   };
 
-  const btnStyle = (active) => ({
-    fontSize:10, padding:'2px 8px', margin:'2px', cursor:'pointer',
-    borderRadius:3, border:'1px solid', fontFamily:'var(--mono)',
+  const btnS = active => ({
+    fontSize:10, padding:'2px 8px', margin:'2px', cursor:'pointer', borderRadius:3,
+    border:'1px solid', fontFamily:'var(--mono)',
     background: active ? 'var(--blue3)' : 'var(--bg2)',
     color:       active ? 'var(--blue)'  : 'var(--text3)',
     borderColor: active ? 'var(--blue)'  : 'var(--border)',
@@ -1428,7 +1446,7 @@ function NewsForm(){
 
   return (
     <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto'}}>
-      {/* Upload */}
+
       <div className="sb-section">
         <div className="sb-label">📰 News Upload</div>
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={loadFile}/>
@@ -1438,12 +1456,9 @@ function NewsForm(){
         {fileName&&<div style={{fontSize:10,color:'var(--text3)',marginTop:4,wordBreak:'break-all'}}>{fileName}</div>}
       </div>
 
-      {/* Stats */}
       {rows.length>0&&<div className="sb-section">
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-          {[['Total rows', rows.length.toLocaleString()],['Filtered', filtered.length.toLocaleString()],
-            ['To push', Math.min(filtered.length,limit).toLocaleString()],['Outlets', (uniques['Outlet']||[]).length]
-          ].map(([l,v])=>(
+          {[['Total',rows.length.toLocaleString()],['Filtered',filtered.length.toLocaleString()],['To push',Math.min(filtered.length,limit).toLocaleString()],['Outlets',(uniques['Outlet']||[]).length]].map(([l,v])=>(
             <div key={l} style={{background:'var(--bg2)',borderRadius:4,padding:'5px 8px',border:'1px solid var(--border)'}}>
               <div style={{fontSize:8,color:'var(--text3)',letterSpacing:'.08em',textTransform:'uppercase'}}>{l}</div>
               <div style={{fontSize:14,fontWeight:700,color:'var(--text)'}}>{v}</div>
@@ -1459,62 +1474,52 @@ function NewsForm(){
         </div>
       </div>}
 
-      {/* Filters */}
       {rows.length>0&&FILTER_COLS.map(col=>(
         <div key={col} className="sb-section">
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
-            <div className="sb-label" style={{marginBottom:0}}>{col} {anyActive(col)&&<span style={{color:'var(--blue)',fontSize:9}}>●</span>}</div>
-            {anyActive(col)&&<button onClick={()=>clearFilter(col)} style={{fontSize:9,padding:'1px 5px',background:'transparent',border:'1px solid var(--border)',borderRadius:3,color:'var(--text3)',cursor:'pointer'}}>✕ clear</button>}
+            <div className="sb-label" style={{marginBottom:0}}>{col}{anyActive(col)&&<span style={{color:'var(--blue)',marginLeft:4}}>●</span>}</div>
+            {anyActive(col)&&<button onClick={()=>clearFilter(col)} style={{fontSize:9,padding:'1px 5px',background:'transparent',border:'1px solid var(--border)',borderRadius:3,color:'var(--text3)',cursor:'pointer'}}>✕</button>}
           </div>
-          <div style={{maxHeight:120,overflowY:'auto',display:'flex',flexWrap:'wrap',gap:2}}>
+          <div style={{maxHeight:110,overflowY:'auto',display:'flex',flexWrap:'wrap',gap:2}}>
             {(uniques[col]||[]).map(val=>(
-              <button key={val} onClick={()=>toggleFilter(col,val)} style={btnStyle(isActive(col,val))}>
-                {val||'(blank)'}
-              </button>
+              <button key={val} onClick={()=>toggleFilter(col,val)} style={btnS(isActive(col,val))}>{val||'(blank)'}</button>
             ))}
           </div>
         </div>
       ))}
 
-      {/* Actions */}
       {rows.length>0&&<div className="sb-section">
         <button className="btn btn-primary btn-full" onClick={pushNews} disabled={pushing||!filtered.length}>
           {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:`📡 Push ${Math.min(filtered.length,limit).toLocaleString()} rows to News Ticker`}
         </button>
-        <button className="btn btn-full" style={{marginTop:6,background:'#2a0a0a',border:'1px solid #6a1a1a',color:'var(--red)',fontSize:11}} onClick={clearNews} disabled={clearing}>
-          {clearing?'Clearing…':'🗑 Clear News Ticker'}
+        <button className="btn btn-full" style={{marginTop:6,background:'#2a0a0a',border:'1px solid #6a1a1a',color:'var(--red)',fontSize:11}} onClick={clearNews}>
+          🗑 Clear News Ticker
         </button>
         <button className="btn btn-full" style={{marginTop:6,fontSize:11}} onClick={()=>setPreview(p=>!p)}>
           {preview?'▲ Hide Preview':'▼ Preview filtered rows'}
         </button>
       </div>}
 
-      {/* Preview table */}
       {preview&&filtered.length>0&&<div style={{padding:'0 12px 12px'}}>
-        <div style={{fontSize:10,color:'var(--text3)',marginBottom:4}}>Showing first 20 of {filtered.length.toLocaleString()} filtered rows</div>
+        <div style={{fontSize:10,color:'var(--text3)',marginBottom:4}}>First 20 of {filtered.length.toLocaleString()} rows</div>
         <div style={{overflowX:'auto',fontSize:9}}>
           <table style={{borderCollapse:'collapse',width:'100%',fontFamily:'var(--mono)'}}>
-            <thead>
-              <tr>{['Country','Language','Outlet','Headline'].map(h=>(
-                <th key={h} style={{padding:'3px 6px',borderBottom:'1px solid var(--border)',textAlign:'left',color:'var(--text3)',letterSpacing:'.06em',whiteSpace:'nowrap'}}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0,20).map((r,i)=>(
-                <tr key={i} style={{borderBottom:'1px solid var(--border)',background:i%2?'var(--bg2)':'transparent'}}>
-                  <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Country']||'—'}</td>
-                  <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Language']||'—'}</td>
-                  <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Outlet']||'—'}</td>
-                  <td style={{padding:'3px 6px',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r['Headline']||'—'}</td>
-                </tr>
-              ))}
-            </tbody>
+            <thead><tr>{['Country','Language','Outlet','Headline'].map(h=>(
+              <th key={h} style={{padding:'3px 6px',borderBottom:'1px solid var(--border)',textAlign:'left',color:'var(--text3)',letterSpacing:'.06em',whiteSpace:'nowrap'}}>{h}</th>
+            ))}</tr></thead>
+            <tbody>{filtered.slice(0,20).map((r,i)=>(
+              <tr key={i} style={{borderBottom:'1px solid var(--border)',background:i%2?'var(--bg2)':'transparent'}}>
+                <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Country']||'—'}</td>
+                <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Language']||'—'}</td>
+                <td style={{padding:'3px 6px',whiteSpace:'nowrap'}}>{r['Outlet']||'—'}</td>
+                <td style={{padding:'3px 6px',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r['Headline']||'—'}</td>
+              </tr>
+            ))}</tbody>
           </table>
         </div>
       </div>}
 
-      {/* Status message */}
-      {msg&&<div style={{margin:'8px 12px',fontSize:11,padding:'6px 10px',borderRadius:5,
+      {msg&&<div style={{margin:'8px 12px',fontSize:11,padding:'6px 10px',borderRadius:5,lineHeight:1.5,
         background:msg.startsWith('✓')?'#0d1a0d':msg.startsWith('✗')?'#1a0808':'#1a1400',
         color:msg.startsWith('✓')?'var(--green)':msg.startsWith('✗')?'var(--red)':'#d4a030',
         border:'1px solid '+(msg.startsWith('✓')?'#2a5a2a':msg.startsWith('✗')?'#5a1a1a':'#5a4a00')
@@ -1522,7 +1527,6 @@ function NewsForm(){
     </div>
   );
 }
-
 
 function App(){
   const [jobId,setJobId]=useState(null);
